@@ -1,0 +1,53 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-poker-dark text-white font-poker;
+  }
+}
+
+@layer components {
+  .card {
+    @apply w-16 h-24 bg-white text-black rounded-lg border-2 border-gray-300 flex items-center justify-center font-bold text-sm shadow-lg;
+  }
+  
+  .card.hearts, .card.diamonds {
+    @apply text-red-600;
+  }
+  
+  .card.clubs, .card.spades {
+    @apply text-black;
+  }
+  
+  .player-seat {
+    @apply bg-poker-green rounded-lg p-4 border-2 border-poker-gold;
+  }
+  
+  .game-button {
+    @apply bg-poker-gold text-poker-dark px-6 py-2 rounded-lg font-bold hover:bg-yellow-400 transition-colors;
+  }
+  
+  .action-button {
+    @apply bg-poker-red text-white px-4 py-2 rounded-lg font-bold hover:bg-red-700 transition-colors;
+  }
+  
+  .chip {
+    @apply w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-xs font-bold;
+  }
+  
+  .chip.red { @apply bg-red-600; }
+  .chip.blue { @apply bg-blue-600; }
+  .chip.green { @apply bg-green-600; }
+  .chip.black { @apply bg-black; }
+  .chip.purple { @apply bg-purple-600; }
+
+  .ai-thinking {
+    @apply animate-pulse text-blue-400;
+  }
+
+  .ai-indicator {
+    @apply bg-blue-600 text-white px-1 rounded text-xs;
+  }
+} 
