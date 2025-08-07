@@ -1,11 +1,10 @@
 # Texas Hold'em Poker Game
 
-A multiplayer Texas Hold'em poker game built with Next.js, Tailwind CSS, and WebSocket support. The game supports up to 10 players per room with real-time gameplay and AI opponents.
+A multiplayer Texas Hold'em poker game built with Next.js, Tailwind CSS, and WebSocket support. The game supports up to 8 human players per room with real-time gameplay.
 
 ## Features
 
-- 🎮 **Multiplayer Texas Hold'em**: Support for up to 10 players per room
-- 🤖 **AI Opponents**: AI players automatically join when rooms are empty
+- 🎮 **Multiplayer Texas Hold'em**: Support for up to 8 human players per room
 - 🔄 **Real-time Gameplay**: WebSocket-based real-time updates
 - 🎨 **Modern UI**: Beautiful interface with Tailwind CSS
 - 🃏 **Full Poker Rules**: Complete Texas Hold'em implementation
@@ -52,10 +51,9 @@ This will start both:
    - Enter your name
    - Create a new room or join an existing one using a room code
    - Share the room code with other players
-   - **AI players will automatically join if the room is empty**
 
 2. **Start the Game**:
-   - Wait for at least 2 players to join (including AI players)
+   - Wait for at least 2 players to join
    - Click "Start Game" to begin
 
 3. **Gameplay**:
@@ -63,25 +61,6 @@ This will start both:
    - Small blind: $10, Big blind: $20
    - Follow standard Texas Hold'em rules
    - Use the action buttons: Fold, Call, Raise
-   - **AI players will make decisions automatically with realistic delays**
-
-## AI Players
-
-The game features intelligent AI opponents that:
-
-- **Automatic Joining**: AI players automatically join empty rooms
-- **Smart Decision Making**: AI uses hand strength, position, and pot odds
-- **Realistic Behavior**: Random delays and unpredictable actions
-- **Visual Indicators**: AI players are clearly marked with "AI" badges
-- **Thinking Animation**: Shows when AI is making decisions
-
-### AI Strategy
-
-AI players use a sophisticated decision-making system based on:
-- **Hand Strength**: Evaluates starting hand quality
-- **Position**: Considers early, middle, and late position
-- **Pot Odds**: Calculates whether calling is profitable
-- **Randomization**: Adds unpredictability to prevent exploitation
 
 ## Game Rules
 
@@ -149,7 +128,7 @@ texas-holdem-game/
 │   ├── PlayerSeat.tsx     # Individual player display
 │   └── PokerTable.tsx     # Main game table
 ├── server/                # WebSocket server
-│   └── websocket-server.js # Game logic server with AI
+│   └── websocket-server.js # Game logic server
 ├── package.json           # Dependencies
 ├── tailwind.config.js     # Tailwind configuration
 └── README.md             # This file
@@ -170,7 +149,6 @@ texas-holdem-game/
 1. **New Game Actions**: Add to `websocket-server.js`
 2. **UI Components**: Create in `components/` directory
 3. **Styling**: Use Tailwind classes or add to `globals.css`
-4. **AI Improvements**: Modify AI logic in `websocket-server.js`
 
 ## Troubleshooting
 
@@ -185,12 +163,8 @@ texas-holdem-game/
    - Check browser console for errors
 
 3. **Game Not Starting**:
-   - Ensure at least 2 players have joined (AI players count)
+   - Ensure at least 2 players have joined
    - Check server logs for errors
-
-4. **AI Players Not Appearing**:
-   - AI players only join when rooms are completely empty
-   - Check server logs for AI player creation
 
 ## Contributing
 
@@ -202,11 +176,4 @@ texas-holdem-game/
 
 ## License
 
-MIT License - feel free to use this project for learning or commercial purposes.
-
-## Support
-
-For issues or questions:
-- Check the troubleshooting section
-- Review server logs for errors
-- Ensure all dependencies are installed correctly 
+This project is licensed under the MIT License. 

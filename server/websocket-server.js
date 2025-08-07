@@ -1,6 +1,7 @@
+const express = require('express');
+const { createServer } = require('http');
 const { Server } = require('socket.io');
 const { v4: uuidv4 } = require('uuid');
-const express = require('express');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -23,13 +24,8 @@ const io = new Server(server, {
 
 // Game state management
 const games = new Map();
-const MAX_PLAYERS = 10;
+const MAX_PLAYERS = 8;
 const MIN_PLAYERS = 2;
-
-// AI Player names
-const AI_NAMES = [
-  'Ace', 'Bluff', 'Chip', 'Dealer', 'Flush', 'Royal', 'Straight', 'Pocket', 'River', 'Turn'
-];
 
 // Card deck and game logic
 const SUITS = ['hearts', 'diamonds', 'clubs', 'spades'];
@@ -49,7 +45,7 @@ class PokerGame {
     this.round = 'preflop'; // preflop, flop, turn, river, showdown
     this.smallBlind = 10;
     this.bigBlind = 20;
-    this.aiPlayers = new Set(); // Track AI players
+    this.endReason = null; // 'early_end' | 'showdown' | null
     this.initializeDeck();
   }
 
@@ -85,11 +81,34 @@ class PokerGame {
   }
 
   startNewRound() {
+    console.log('Starting new round...');
+    // Remove any players who have exited/inactive before starting a new round
+    for (const [playerId, player] of this.players.entries()) {
+      if (player.isActive === false) {
+        this.players.delete(playerId);
+      }
+    }
+
+    // If we do not have enough players after cleanup, wait for more players
+    if (this.players.size < MIN_PLAYERS) {
+      this.gameState = 'waiting';
+      this.communityCards = [];
+      this.pot = 0;
+      this.currentBet = 0;
+      this.round = 'preflop';
+      this.dealerIndex = 0;
+      this.currentPlayerIndex = 0;
+      io.to(this.roomId).emit('gameState', this.getGameState());
+      return;
+    }
+
     this.initializeDeck();
     this.communityCards = [];
     this.pot = 0;
     this.currentBet = 0;
     this.round = 'preflop';
+    this.gameState = 'playing';
+    this.endReason = null;
     
     // Reset player states
     this.players.forEach(player => {
@@ -101,6 +120,21 @@ class PokerGame {
 
     this.dealCards();
     this.postBlinds();
+    
+    // Update game state for all players
+    io.to(this.roomId).emit('gameState', this.getGameState());
+    console.log('New round started, game state updated');
+  }
+
+  restartGame() {
+    console.log('Restarting game after all players folded...');
+    this.gameState = 'restarting';
+    io.to(this.roomId).emit('gameState', this.getGameState());
+    
+    // Wait a moment then start new round
+    setTimeout(() => {
+      this.startNewRound();
+    }, 1000);
   }
 
   postBlinds() {
@@ -122,12 +156,12 @@ class PokerGame {
     }
   }
 
-  addPlayer(playerId, playerName, isAI = false) {
+  addPlayer(playerId, playerName) {
     if (this.players.size >= MAX_PLAYERS) {
       return false;
     }
 
-    this.players.set(playerId, {
+    const player = {
       id: playerId,
       name: playerName,
       chips: 1000,
@@ -135,182 +169,31 @@ class PokerGame {
       hand: [],
       folded: false,
       allIn: false,
-      isActive: true,
-      isAI: isAI
-    });
+      isActive: true
+    };
 
-    if (isAI) {
-      this.aiPlayers.add(playerId);
-    }
-
+    this.players.set(playerId, player);
+    console.log(`${playerName} added to room ${this.roomId}`);
     return true;
   }
 
   removePlayer(playerId) {
     this.players.delete(playerId);
-    this.aiPlayers.delete(playerId);
-  }
-
-  // AI decision making logic
-  makeAIDecision(playerId) {
-    const player = this.players.get(playerId);
-    if (!player || !player.isAI || player.folded || player.allIn) {
-      return null;
-    }
-
-    const playerArray = Array.from(this.players.values());
-    const playerIndex = playerArray.findIndex(p => p.id === playerId);
-    
-    // Simple AI strategy based on hand strength and position
-    const handStrength = this.evaluateHandStrength(player);
-    const position = this.getPosition(playerIndex);
-    const potOdds = this.calculatePotOdds(player);
-    
-    // Random factor for unpredictability
-    const randomFactor = Math.random();
-    
-    // Decision logic
-    if (handStrength > 0.8 || (handStrength > 0.6 && position === 'late')) {
-      // Strong hand - raise or call
-      if (randomFactor > 0.3) {
-        const raiseAmount = Math.min(player.chips, this.currentBet * 2);
-        return { action: 'raise', amount: raiseAmount };
-      } else {
-        return { action: 'call' };
-      }
-    } else if (handStrength > 0.4 || potOdds > 0.3) {
-      // Medium hand - call if pot odds are good
-      if (randomFactor > 0.5) {
-        return { action: 'call' };
-      } else {
-        return { action: 'fold' };
-      }
-    } else {
-      // Weak hand - fold most of the time
-      if (randomFactor > 0.8) {
-        return { action: 'call' };
-      } else {
-        return { action: 'fold' };
-      }
-    }
-  }
-
-  evaluateHandStrength(player) {
-    if (!player.hand || player.hand.length < 2) return 0;
-    
-    // Simple hand evaluation based on card ranks
-    const ranks = player.hand.map(card => RANKS.indexOf(card.rank));
-    const isPair = ranks[0] === ranks[1];
-    const isHighCard = Math.max(...ranks) >= 10; // J, Q, K, A
-    const isSuited = player.hand[0].suit === player.hand[1].suit;
-    
-    let strength = 0;
-    
-    if (isPair) {
-      strength = 0.7 + (ranks[0] / 13) * 0.3; // Higher pairs are stronger
-    } else if (isHighCard && isSuited) {
-      strength = 0.6;
-    } else if (isHighCard) {
-      strength = 0.5;
-    } else if (isSuited) {
-      strength = 0.4;
-    } else {
-      strength = 0.2;
-    }
-    
-    return strength;
-  }
-
-  getPosition(playerIndex) {
-    const playerArray = Array.from(this.players.values());
-    const totalPlayers = playerArray.length;
-    
-    if (playerIndex <= Math.floor(totalPlayers / 3)) {
-      return 'early';
-    } else if (playerIndex <= Math.floor(2 * totalPlayers / 3)) {
-      return 'middle';
-    } else {
-      return 'late';
-    }
-  }
-
-  calculatePotOdds(player) {
-    const callAmount = this.currentBet - player.bet;
-    if (callAmount <= 0) return 1;
-    
-    return callAmount / (this.pot + callAmount);
-  }
-
-  // Add AI player when room is empty or only has one human player
-  addAIPlayerIfNeeded() {
-    const playerArray = Array.from(this.players.values());
-    const humanPlayers = playerArray.filter(p => !p.isAI);
-    
-    // Add AI player if there are no players or only one human player
-    if (this.players.size === 0 || humanPlayers.length === 1) {
-      const aiName = AI_NAMES[Math.floor(Math.random() * AI_NAMES.length)];
-      const aiId = `ai_${uuidv4()}`;
-      this.addPlayer(aiId, aiName, true);
-      console.log(`AI player ${aiName} added to room ${this.roomId}`);
-      return aiId;
-    }
-    return null;
-  }
-
-  // Process AI turns
-  processAITurn() {
-    const playerArray = Array.from(this.players.values());
-    const currentPlayer = playerArray[this.currentPlayerIndex];
-    
-    console.log(`Processing AI turn for player: ${currentPlayer?.name}, isAI: ${currentPlayer?.isAI}, folded: ${currentPlayer?.folded}, allIn: ${currentPlayer?.allIn}`);
-    
-    if (currentPlayer && currentPlayer.isAI && !currentPlayer.folded && !currentPlayer.allIn) {
-      const decision = this.makeAIDecision(currentPlayer.id);
-      console.log(`AI decision for ${currentPlayer.name}:`, decision);
-      
-      if (decision) {
-        setTimeout(() => {
-          console.log(`Executing AI action for ${currentPlayer.name}:`, decision);
-          this.executeAIAction(currentPlayer.id, decision);
-        }, 1000 + Math.random() * 2000); // Random delay for realism
-      }
-    }
-  }
-
-  executeAIAction(playerId, decision) {
-    const player = this.players.get(playerId);
-    if (!player) return;
-
-    switch (decision.action) {
-      case 'fold':
-        player.folded = true;
-        break;
-      case 'call':
-        const callAmount = this.currentBet - player.bet;
-        const actualCall = Math.min(callAmount, player.chips);
-        player.chips -= actualCall;
-        player.bet += actualCall;
-        this.pot += actualCall;
-        if (player.chips === 0) player.allIn = true;
-        break;
-      case 'raise':
-        const raiseAmount = Math.min(decision.amount, player.chips);
-        player.chips -= raiseAmount;
-        player.bet += raiseAmount;
-        this.pot += raiseAmount;
-        this.currentBet = player.bet;
-        if (player.chips === 0) player.allIn = true;
-        break;
-    }
-
-    io.to(this.roomId).emit('gameState', this.getGameState());
-    
-    // Move to next player
-    this.moveToNextPlayer();
+    console.log(`Player ${playerId} removed from room ${this.roomId}`);
   }
 
   moveToNextPlayer() {
     const playerArray = Array.from(this.players.values());
+    
+    // Check if all players have folded FIRST - before trying to move to next player
+    if (this.haveAllPlayersFolded()) {
+      console.log('All players have folded - restarting the game');
+      // Return pot to players proportionally to their bets
+      this.returnPotToPlayers();
+      this.restartGame();
+      return;
+    }
+    
     let nextIndex = (this.currentPlayerIndex + 1) % playerArray.length;
     
     // Skip folded players
@@ -320,24 +203,30 @@ class PokerGame {
     
     this.currentPlayerIndex = nextIndex;
     const nextPlayer = playerArray[nextIndex];
-    console.log(`Moved to next player: ${nextPlayer?.name} (isAI: ${nextPlayer?.isAI})`);
+    console.log(`Moved to next player: ${nextPlayer?.name}`);
+    
+    // Check if game should end early due to all players folding except one
+    if (this.shouldEndGameEarly()) {
+      console.log('Game ending early - only one player remains active');
+      this.determineWinner();
+      return;
+    }
     
     // Check if round is complete
     if (this.isRoundComplete()) {
       console.log('Round complete, moving to next round');
       this.nextRound();
     } else {
-      // Process AI turn if next player is AI
-      if (nextPlayer && nextPlayer.isAI) {
-        console.log(`Next player is AI (${nextPlayer.name}), processing AI turn`);
-        this.processAITurn();
-      }
+      console.log(`Next player: ${nextPlayer?.name}`);
     }
   }
 
   isRoundComplete() {
     const playerArray = Array.from(this.players.values());
     const activePlayers = playerArray.filter(p => !p.folded);
+    
+    // If no active players (all folded), round is not complete - game should restart
+    if (activePlayers.length === 0) return false;
     
     if (activePlayers.length <= 1) return true;
     
@@ -346,7 +235,66 @@ class PokerGame {
     return activePlayers.every(p => p.bet === firstBet || p.allIn);
   }
 
+  shouldEndGameEarly() {
+    const playerArray = Array.from(this.players.values());
+    const activePlayers = playerArray.filter(p => !p.folded);
+    
+    // If only one player remains active, end the game immediately
+    return activePlayers.length <= 1;
+  }
+
+  haveAllPlayersFolded() {
+    const playerArray = Array.from(this.players.values());
+    const activePlayers = playerArray.filter(p => !p.folded);
+    
+    console.log(`Checking if all players folded: ${activePlayers.length} active players out of ${playerArray.length} total`);
+    playerArray.forEach(player => {
+      console.log(`${player.name}: folded=${player.folded}, allIn=${player.allIn}`);
+    });
+    
+    // If all players have folded (no active players), restart the game
+    return activePlayers.length === 0;
+  }
+
+  returnPotToPlayers() {
+    const playerArray = Array.from(this.players.values());
+    const totalBets = playerArray.reduce((sum, player) => sum + player.bet, 0);
+    
+    if (totalBets > 0) {
+      // Return each player's bet to them
+      playerArray.forEach(player => {
+        if (player.bet > 0) {
+          const betAmount = player.bet;
+          player.chips += betAmount;
+          player.bet = 0;
+          console.log(`Returned $${betAmount} to ${player.name}`);
+        }
+      });
+    }
+    
+    this.pot = 0;
+    console.log('Pot returned to players - all players folded');
+    
+    // Update game state after returning pot
+    io.to(this.roomId).emit('gameState', this.getGameState());
+  }
+
   nextRound() {
+    // Check if all players have folded - restart the game
+    if (this.haveAllPlayersFolded()) {
+      console.log('All players have folded in nextRound - restarting the game');
+      this.returnPotToPlayers();
+      this.restartGame();
+      return;
+    }
+    
+    // Check if game should end early due to all players folding except one
+    if (this.shouldEndGameEarly()) {
+      console.log('Game ending early - only one player remains active');
+      this.determineWinner();
+      return;
+    }
+
     switch (this.round) {
       case 'preflop':
         this.round = 'flop';
@@ -374,30 +322,36 @@ class PokerGame {
     this.currentPlayerIndex = (this.dealerIndex + 1) % this.players.size;
     
     io.to(this.roomId).emit('gameState', this.getGameState());
-    
-    // Process AI turn if current player is AI
-    const playerArray = Array.from(this.players.values());
-    const currentPlayer = playerArray[this.currentPlayerIndex];
-    if (currentPlayer && currentPlayer.isAI) {
-      this.processAITurn();
-    }
   }
 
   determineWinner() {
-    // Simple winner determination - first non-folded player wins
     const playerArray = Array.from(this.players.values());
-    const winner = playerArray.find(p => !p.folded);
+    const activePlayers = playerArray.filter(p => !p.folded);
     
-    if (winner) {
+    if (activePlayers.length === 1) {
+      // Only one player remains - they win by default
+      const winner = activePlayers[0];
       winner.chips += this.pot;
       this.pot = 0;
-    }
-    
-    // Reset for next round
-    setTimeout(() => {
-      this.startNewRound();
+      console.log(`${winner.name} wins by default - all other players folded`);
+      this.endReason = 'early_end';
+      this.gameState = 'finished';
       io.to(this.roomId).emit('gameState', this.getGameState());
-    }, 3000);
+      return;
+    } else {
+      // Multiple players remain - determine winner by hand strength
+      // Simple winner determination - first non-folded player wins
+      const winner = playerArray.find(p => !p.folded);
+      
+      if (winner) {
+        winner.chips += this.pot;
+        this.pot = 0;
+      }
+      this.endReason = 'showdown';
+      this.gameState = 'finished';
+      io.to(this.roomId).emit('gameState', this.getGameState());
+      return;
+    }
   }
 
   getGameState() {
@@ -410,7 +364,8 @@ class PokerGame {
       round: this.round,
       gameState: this.gameState,
       currentPlayerIndex: this.currentPlayerIndex,
-      dealerIndex: this.dealerIndex
+      dealerIndex: this.dealerIndex,
+      endReason: this.endReason
     };
   }
 }
@@ -443,16 +398,6 @@ io.on('connection', (socket) => {
   socket.on('startGame', () => {
     const game = games.get(socket.roomId);
     if (game) {
-      // Add AI player if only one human player
-      const playerArray = Array.from(game.players.values());
-      const humanPlayers = playerArray.filter(p => !p.isAI);
-      
-      if (humanPlayers.length === 1) {
-        game.addAIPlayerIfNeeded();
-        // Update playerArray after adding AI
-        const updatedPlayerArray = Array.from(game.players.values());
-        console.log(`Game now has ${updatedPlayerArray.length} players (${humanPlayers.length} human + ${updatedPlayerArray.length - humanPlayers.length} AI)`);
-      }
       
       if (game.players.size >= MIN_PLAYERS) {
         game.gameState = 'playing';
@@ -460,13 +405,6 @@ io.on('connection', (socket) => {
         io.to(socket.roomId).emit('gameState', game.getGameState());
         io.to(socket.roomId).emit('gameStarted');
         
-        // Process AI turn if first player is AI
-        const finalPlayerArray = Array.from(game.players.values());
-        const firstPlayer = finalPlayerArray[game.currentPlayerIndex];
-        if (firstPlayer && firstPlayer.isAI) {
-          console.log(`First player is AI (${firstPlayer.name}), processing AI turn`);
-          game.processAITurn();
-        }
       } else {
         console.log(`Not enough players to start game. Current: ${game.players.size}, Required: ${MIN_PLAYERS}`);
       }
@@ -477,7 +415,7 @@ io.on('connection', (socket) => {
     const game = games.get(socket.roomId);
     if (game && game.gameState === 'playing') {
       const player = game.players.get(socket.id);
-      if (player && !player.folded && !player.isAI) {
+      if (player && !player.folded) {
         const actualBet = Math.min(amount, player.chips);
         player.chips -= actualBet;
         player.bet += actualBet;
@@ -497,10 +435,19 @@ io.on('connection', (socket) => {
     const game = games.get(socket.roomId);
     if (game && game.gameState === 'playing') {
       const player = game.players.get(socket.id);
-      if (player && !player.isAI) {
+      if (player && !player.folded) {
+        console.log(`${player.name} is folding`);
         player.folded = true;
         io.to(socket.roomId).emit('gameState', game.getGameState());
-        game.moveToNextPlayer();
+        
+        // Check if all players have folded after this fold
+        if (game.haveAllPlayersFolded()) {
+          console.log('All players have folded after human fold - restarting game');
+          game.returnPotToPlayers();
+          game.restartGame();
+        } else {
+          game.moveToNextPlayer();
+        }
       }
     }
   });
@@ -509,7 +456,7 @@ io.on('connection', (socket) => {
     const game = games.get(socket.roomId);
     if (game && game.gameState === 'playing') {
       const player = game.players.get(socket.id);
-      if (player && !player.folded && !player.isAI) {
+      if (player && !player.folded) {
         const callAmount = game.currentBet - player.bet;
         const actualCall = Math.min(callAmount, player.chips);
         player.chips -= actualCall;
@@ -530,7 +477,7 @@ io.on('connection', (socket) => {
     const game = games.get(socket.roomId);
     if (game && game.gameState === 'playing') {
       const player = game.players.get(socket.id);
-      if (player && !player.folded && !player.isAI) {
+      if (player && !player.folded) {
         const raiseAmount = Math.min(amount, player.chips);
         player.chips -= raiseAmount;
         player.bet += raiseAmount;
@@ -554,31 +501,127 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('forceRestart', () => {
+    const game = games.get(socket.roomId);
+    if (game) {
+      console.log('Force restart triggered by player');
+      game.returnPotToPlayers();
+      game.restartGame();
+    }
+  });
+
+
+
+  socket.on('exitGame', () => {
+    const game = games.get(socket.roomId);
+    if (game) {
+      const player = game.players.get(socket.id);
+      if (player) {
+        console.log(`${player.name} is exiting the game`);
+
+        if (game.gameState === 'playing' && player.bet > 0) {
+          // Mark as folded/inactive for the rest of the hand
+          player.folded = true;
+          player.isActive = false;
+          io.to(socket.roomId).emit('gameState', game.getGameState());
+
+          // Advance turn if it was their turn
+          if (game.shouldEndGameEarly()) {
+            game.determineWinner();
+          } else {
+            game.moveToNextPlayer();
+          }
+        } else {
+          // Safe to remove immediately (not mid-hand with money in pot)
+          game.removePlayer(socket.id);
+          
+          if (game.gameState === 'playing') {
+            if (game.shouldEndGameEarly()) {
+              game.determineWinner();
+            } else if (game.haveAllPlayersFolded()) {
+              game.returnPotToPlayers();
+              game.restartGame();
+            } else {
+              game.moveToNextPlayer();
+              io.to(socket.roomId).emit('gameState', game.getGameState());
+            }
+          } else {
+            io.to(socket.roomId).emit('gameState', game.getGameState());
+          }
+
+          io.to(socket.roomId).emit('playerLeft', { playerId: socket.id, playerName: player.name });
+
+          if (game.players.size === 0) {
+            games.delete(socket.roomId);
+            console.log(`Game room ${socket.roomId} deleted - no players remaining`);
+          }
+        }
+      }
+    }
+  });
+
   socket.on('disconnect', () => {
     console.log('User disconnected:', socket.id);
     
     if (socket.roomId) {
       const game = games.get(socket.roomId);
       if (game) {
-        game.removePlayer(socket.id);
-        
-        if (game.players.size === 0) {
-          games.delete(socket.roomId);
-        } else {
-          // Add AI player if only AI players remain
-          const remainingPlayers = Array.from(game.players.values());
-          const hasHumanPlayer = remainingPlayers.some(p => !p.isAI);
-          
-          if (!hasHumanPlayer) {
-            // Remove all AI players and add one new AI player
-            remainingPlayers.forEach(p => game.removePlayer(p.id));
-            game.addAIPlayerIfNeeded();
+        const player = game.players.get(socket.id);
+        if (player) {
+          if (game.gameState === 'playing' && (player.bet > 0)) {
+            // Treat as folded/inactive for remainder of the hand
+            player.folded = true;
+            player.isActive = false;
+            io.to(socket.roomId).emit('gameState', game.getGameState());
+
+            // If everyone else folded, handle restart; else advance turn
+            if (game.shouldEndGameEarly()) {
+              game.determineWinner();
+            } else if (game.haveAllPlayersFolded()) {
+              game.returnPotToPlayers();
+              game.restartGame();
+            } else {
+              game.moveToNextPlayer();
+            }
+          } else {
+            game.removePlayer(socket.id);
+            
+            if (game.gameState === 'playing') {
+              if (game.shouldEndGameEarly()) {
+                game.determineWinner();
+              } else if (game.haveAllPlayersFolded()) {
+                game.returnPotToPlayers();
+                game.restartGame();
+              } else {
+                game.moveToNextPlayer();
+                io.to(socket.roomId).emit('gameState', game.getGameState());
+              }
+            } else {
+              io.to(socket.roomId).emit('gameState', game.getGameState());
+            }
+
+            if (game.players.size === 0) {
+              games.delete(socket.roomId);
+            } else {
+              io.to(socket.roomId).emit('playerLeft', { playerId: socket.id });
+            }
           }
-          
-          io.to(socket.roomId).emit('gameState', game.getGameState());
-          io.to(socket.roomId).emit('playerLeft', { playerId: socket.id });
         }
       }
+    }
+  });
+
+  socket.on('continueGame', () => {
+    const game = games.get(socket.roomId);
+    if (!game) return;
+    
+    if (game.players.size >= MIN_PLAYERS) {
+      game.startNewRound();
+      io.to(socket.roomId).emit('gameState', game.getGameState());
+    } else {
+      // Not enough players to continue
+      game.gameState = 'waiting';
+      io.to(socket.roomId).emit('gameState', game.getGameState());
     }
   });
 });

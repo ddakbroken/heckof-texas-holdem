@@ -15,12 +15,22 @@ export default function Home() {
     setGameState('game')
   }
 
+  const handleExitToLobby = () => {
+    setGameState('lobby')
+    setRoomId('')
+    setPlayerName('')
+  }
+
   return (
     <main className="min-h-screen bg-poker-dark">
       {gameState === 'lobby' ? (
         <GameLobby onJoinGame={handleJoinGame} />
       ) : (
-        <PokerTable roomId={roomId} playerName={playerName} />
+        <PokerTable 
+          roomId={roomId} 
+          playerName={playerName} 
+          onExitToLobby={handleExitToLobby}
+        />
       )}
     </main>
   )

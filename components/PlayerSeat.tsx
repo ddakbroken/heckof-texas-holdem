@@ -1,7 +1,5 @@
 "use client";
 
-import { useMemo } from "react";
-
 interface Player {
   id: string;
   name: string;
@@ -11,7 +9,6 @@ interface Player {
   folded: boolean;
   allIn: boolean;
   isActive: boolean;
-  isAI?: boolean;
 }
 
 interface PlayerSeatProps {
@@ -35,48 +32,61 @@ export default function PlayerSeat({
   gameState,
   currentPlayerIndex,
 }: PlayerSeatProps) {
-  const seatPosition = useMemo(() => {
-    // Always place current player at bottom center (6 o'clock position)
-    if (isCurrentPlayer) {
-      return { x: 50, y: 85 }; // Bottom center
-    }
-
-    // For other players, distribute them around the remaining positions
-    // Calculate positions around the table, excluding bottom center
-    const otherPlayers = totalPlayers - 1;
-    const otherPlayerIndex =
-      position > currentPlayerIndex ? position - 1 : position;
-
-    // Calculate positions around the table, excluding bottom center
-    // Start from 7 o'clock and go clockwise, skipping 6 o'clock
-    const availablePositions = 11; // 12 positions minus 1 for current player
-    const adjustedIndex = otherPlayerIndex % availablePositions;
-
-    // Map to clock positions: 7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5 (skipping 6)
-    const clockPositions = [7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5];
-    const clockPosition = clockPositions[adjustedIndex % clockPositions.length];
-
-    // Convert clock position to angle (12 o'clock = -90 degrees, 3 o'clock = 0 degrees)
-    const angle = clockPosition * 30 - 90;
+  const seatPosition = (() => {
+    // Calculate positions around the table in a circle
+    const angle = (position * 45) - 90; // 8 positions, 45 degrees apart, starting from top
     const radius = 35; // percentage from center
     const x = 50 + radius * Math.cos((angle * Math.PI) / 180);
     const y = 50 + radius * Math.sin((angle * Math.PI) / 180);
-
     return { x, y };
-  }, [position, totalPlayers, isCurrentPlayer, currentPlayerIndex]);
+  })();
 
-  const getStatusText = () => {
-    if (player.folded) return "FOLDED";
-    if (player.allIn) return "ALL IN";
-    if (isCurrentTurn) return player.isAI ? "AI THINKING..." : "YOUR TURN";
-    return "";
+  const getCardDisplay = () => {
+    if (player.folded) {
+      return (
+        <div className="flex gap-1">
+          <div className="card back"></div>
+          <div className="card back"></div>
+        </div>
+      );
+    }
+
+    if (isCurrentPlayer && gameState === "playing") {
+      return (
+        <div className="flex gap-1">
+          {player.hand.map((card, index) => (
+            <div key={index} className="card">
+              <div className="card-inner">
+                <div className="card-rank">{card.rank}</div>
+                <div className="card-suit">{getSuitSymbol(card.suit)}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex gap-1">
+        <div className="card back"></div>
+        <div className="card back"></div>
+      </div>
+    );
   };
 
-  const getStatusColor = () => {
-    if (player.folded) return "text-gray-500";
-    if (player.allIn) return "text-poker-gold";
-    if (isCurrentTurn) return player.isAI ? "ai-thinking" : "text-green-400";
-    return "text-white";
+  const getSuitSymbol = (suit: string) => {
+    switch (suit) {
+      case "hearts":
+        return "♥";
+      case "diamonds":
+        return "♦";
+      case "clubs":
+        return "♣";
+      case "spades":
+        return "♠";
+      default:
+        return "";
+    }
   };
 
   return (
@@ -88,79 +98,48 @@ export default function PlayerSeat({
       }}
     >
       <div
-        className={`player-seat ${
-          isCurrentPlayer ? "ring-4 ring-poker-gold" : ""
-        } ${isCurrentTurn ? "ring-4 ring-green-400" : ""}`}
+        className={`player-seat text-center flex flex-col items-center justify-center ${
+          isCurrentPlayer ? "current-player" : ""
+        } ${player.folded ? "folded" : ""} ${
+          isCurrentTurn ? "current-turn" : ""
+        }`}
       >
-        {/* Player Name */}
-        <div className="text-center mb-1 sm:mb-2">
-          <div className="font-bold text-xs truncate max-w-24 flex items-center justify-center gap-1 sm:text-sm">
+        <div className="player-info mb-2">
+          <div className="player-name text-sm font-bold">
             {player.name}
-            {player.isAI && <span className="ai-indicator">AI</span>}
-            {isCurrentPlayer && (
-              <span className="text-poker-gold font-bold">(YOU)</span>
-            )}
+            {isCurrentPlayer && " (YOU)"}
           </div>
-          {isDealer && <div className="text-xs text-poker-gold">DEALER</div>}
-        </div>
-
-        {/* Chips */}
-        <div className="text-center mb-1 sm:mb-2">
-          <div className="text-xs font-bold text-poker-gold sm:text-sm">
-            ${player.chips}
-          </div>
-          {player.bet > 0 && (
-            <div className="text-xs text-white">Bet: ${player.bet}</div>
+          {isDealer && (
+            <div className="dealer-badge text-xs bg-poker-gold text-black px-1 rounded">
+              DEALER
+            </div>
           )}
         </div>
 
-        {/* Status */}
-        {getStatusText() && (
-          <div
-            className={`text-center text-xs font-bold ${getStatusColor()} sm:text-xs text-xs`}
-          >
-            {getStatusText()}
+        <div className="player-chips text-xs mb-1">
+          ${player.chips}
+        </div>
+
+        {player.bet > 0 && (
+          <div className="player-bet text-xs bg-poker-gold text-black px-1 rounded mb-1">
+            Bet: ${player.bet}
           </div>
         )}
 
-        {/* Player Cards */}
-        {gameState === "playing" && player.hand.length > 0 && (
-          <div className="flex justify-center gap-0.5 mt-1 sm:gap-1 sm:mt-2">
-            {player.hand.map((card, index) => (
-              <div
-                key={index}
-                className={`card ${card.suit} ${
-                  isCurrentPlayer ? "" : "other-player bg-gray-800"
-                }`}
-              >
-                {isCurrentPlayer ? (
-                  <div className="text-center">
-                    <div className="text-xs">{card.rank}</div>
-                    <div className="text-xs">{getSuitSymbol(card.suit)}</div>
-                  </div>
-                ) : (
-                  <div className="w-full h-full bg-gray-800 rounded border border-gray-600"></div>
-                )}
-              </div>
-            ))}
+        {player.folded && (
+          <div className="folded-badge text-xs bg-gray-600 text-white px-1 rounded mb-1">
+            FOLDED
           </div>
         )}
+
+        {player.allIn && (
+          <div className="allin-badge text-xs bg-poker-red text-white px-1 rounded mb-1">
+            ALL IN
+          </div>
+        )}
+
+        <div className="player-cards">{getCardDisplay()}</div>
       </div>
     </div>
   );
-}
-
-function getSuitSymbol(suit: string): string {
-  switch (suit) {
-    case "hearts":
-      return "♥";
-    case "diamonds":
-      return "♦";
-    case "clubs":
-      return "♣";
-    case "spades":
-      return "♠";
-    default:
-      return "";
-  }
 }

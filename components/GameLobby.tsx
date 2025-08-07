@@ -25,12 +25,18 @@ export default function GameLobby({ onJoinGame }: GameLobbyProps) {
     }
   }
 
+  const handleStartGame = () => {
+    if (playerName.trim()) {
+      onJoinGame(roomId, playerName)
+    }
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-poker-green to-green-900">
       <div className="bg-poker-dark p-8 rounded-lg shadow-2xl border-2 border-poker-gold max-w-md w-full">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-poker-gold mb-2">Texas Hold'em</h1>
-          <p className="text-gray-300">Join a poker game with up to 10 players</p>
+          <p className="text-gray-300">Join a poker game with up to 8 players</p>
         </div>
 
         <div className="space-y-6">
@@ -95,7 +101,7 @@ export default function GameLobby({ onJoinGame }: GameLobbyProps) {
               </>
             ) : (
               <button
-                onClick={handleJoinRoom}
+                onClick={handleStartGame}
                 disabled={!playerName.trim()}
                 className="w-full game-button disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -106,10 +112,10 @@ export default function GameLobby({ onJoinGame }: GameLobbyProps) {
         </div>
 
         <div className="mt-8 text-center text-sm text-gray-400">
-          <p>• Up to 10 players per room</p>
+          <p>• Up to 8 players per room</p>
           <p>• Minimum 2 players to start</p>
           <p>• Each player starts with 1000 chips</p>
-          <p>• AI players will join automatically if room is empty</p>
+          <p>• Human players only - no AI opponents</p>
         </div>
       </div>
     </div>

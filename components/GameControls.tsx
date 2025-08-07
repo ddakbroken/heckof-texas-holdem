@@ -9,34 +9,37 @@ interface Player {
   folded: boolean;
   allIn: boolean;
   isActive: boolean;
-  isAI?: boolean;
 }
 
 interface GameControlsProps {
   gameState: string;
   currentPlayer: Player | null;
+  isMyTurn: boolean;
   onStartGame: () => void;
   onFold: () => void;
   onCall: () => void;
   onRaise: () => void;
   onNextRound: () => void;
+  onForceRestart?: () => void;
 }
 
 export default function GameControls({
   gameState,
   currentPlayer,
+  isMyTurn,
   onStartGame,
   onFold,
   onCall,
   onRaise,
   onNextRound,
+  onForceRestart,
 }: GameControlsProps) {
   const canAct =
     currentPlayer &&
     !currentPlayer.folded &&
     !currentPlayer.allIn &&
     gameState === "playing" &&
-    !currentPlayer.isAI;
+    isMyTurn;
 
   return (
     <div className="bg-poker-dark bg-opacity-90 p-2 rounded-lg border-2 border-poker-gold sm:p-4">
@@ -88,9 +91,14 @@ export default function GameControls({
             </div>
           )}
 
-          {currentPlayer?.isAI && (
-            <div className="ai-thinking font-bold sm:text-base text-sm">
-              AI is thinking...
+          {gameState === "playing" && currentPlayer && !currentPlayer.folded && !currentPlayer.allIn && !isMyTurn && (
+            <div className="text-center">
+              <div className="text-gray-400 font-bold sm:text-base text-sm">
+                Waiting for your turn...
+              </div>
+              <div className="text-gray-500 text-xs">
+                Another player is making their move
+              </div>
             </div>
           )}
         </div>
@@ -99,6 +107,24 @@ export default function GameControls({
           <button onClick={onNextRound} className="game-button">
             Next Round
           </button>
+        </div>
+      ) : gameState === "restarting" ? (
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-poker-gold mx-auto mb-2"></div>
+          <p className="text-poker-gold font-bold text-sm">Restarting Game...</p>
+          <p className="text-gray-300 text-xs">All players folded</p>
+        </div>
+      ) : gameState === "playing" && currentPlayer?.folded ? (
+        <div className="text-center">
+          <p className="text-gray-500 font-bold text-sm mb-2">You folded</p>
+          {onForceRestart && (
+            <button 
+              onClick={onForceRestart} 
+              className="bg-orange-600 text-white px-3 py-1 rounded text-xs hover:bg-orange-700"
+            >
+              Force Restart
+            </button>
+          )}
         </div>
       ) : null}
     </div>

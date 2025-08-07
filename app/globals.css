@@ -1,5 +1,8 @@
+/* stylelint-disable-next-line at-rule-no-unknown */
 @tailwind base;
+/* stylelint-disable-next-line at-rule-no-unknown */
 @tailwind components;
+/* stylelint-disable-next-line at-rule-no-unknown */
 @tailwind utilities;
 
 @layer base {
@@ -57,19 +60,29 @@
   }
 
   .player-seat {
-    @apply bg-poker-green rounded-lg p-4 border-2 border-poker-gold;
+    @apply bg-poker-dark rounded-lg p-3 border-2 border-poker-gold min-w-[80px] min-h-[60px];
+  }
+
+  .empty-seat {
+    @apply bg-gray-700 bg-opacity-50 border-2 border-dashed border-gray-500 rounded-full w-16 h-16 p-2 flex items-center justify-center;
   }
 
   /* Mobile responsive player seat */
   @media (max-width: 640px) {
     .player-seat {
-      @apply p-2;
+      @apply p-2 min-w-[70px] min-h-[50px];
+    }
+    .empty-seat {
+      @apply w-14 h-14 p-2;
     }
   }
 
   @media (max-width: 480px) {
     .player-seat {
-      @apply p-1;
+      @apply p-1 min-w-[60px] min-h-[40px];
+    }
+    .empty-seat {
+      @apply w-12 h-12 p-1;
     }
   }
 
@@ -146,5 +159,14 @@
 
   .ai-indicator {
     @apply bg-blue-600 text-white px-1 rounded text-xs;
+  }
+
+  /* Confirmation dialog styles */
+  .confirmation-dialog {
+    @apply fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50;
+  }
+
+  .confirmation-dialog-content {
+    @apply bg-poker-dark border-2 border-poker-gold rounded-lg p-6 max-w-md mx-4;
   }
 }
