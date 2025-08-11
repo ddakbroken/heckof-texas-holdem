@@ -18,10 +18,13 @@ interface GameControlsProps {
   roomCreator?: string;
   endReason?: "early_end" | "showdown" | null;
   currentBet: number;
+  bigBlind: number;
+  round: string;
   onStartGame: () => void;
   onFold: () => void;
   onCall: () => void;
-  onBet: () => void;
+  onCheck: () => void;
+  onBet: (amount: number) => void;
   onRaise: () => void;
   onNextRound: () => void;
   onForceRestart?: () => void;
@@ -35,9 +38,12 @@ export default function GameControls({
   roomCreator,
   endReason,
   currentBet,
+  bigBlind,
+  round,
   onStartGame,
   onFold,
   onCall,
+  onCheck,
   onBet,
   onRaise,
   onNextRound,
@@ -86,13 +92,23 @@ export default function GameControls({
                 Fold
               </button>
 
-              {/* Show Bet button when there's no current bet (initial betting) */}
-              {currentPlayer && currentPlayer.bet === 0 && (
+              {/* Show Check button when there's no current bet to call */}
+              {currentBet === 0 && (
                 <button
-                  onClick={onBet}
+                  onClick={onCheck}
                   className="action-button bg-green-600 hover:bg-green-700"
                 >
-                  Bet
+                  Check
+                </button>
+              )}
+
+              {/* Show Bet button only during preflop when no one has bet */}
+              {round === "preflop" && currentBet === 0 && currentPlayer && currentPlayer.bet === 0 && (
+                <button
+                  onClick={() => onBet(bigBlind)}
+                  className="action-button bg-blue-600 hover:bg-blue-700"
+                >
+                  Bet ({bigBlind})
                 </button>
               )}
 

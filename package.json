@@ -6,8 +6,6 @@
     "dev": "concurrently \"npm run dev:next\" \"npm run dev:websocket\"",
     "dev:next": "next dev",
     "dev:websocket": "node server/websocket-server.js",
-    "prebuild": "node scripts/generate-cards.js",
-    "postinstall": "node scripts/generate-cards.js",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"

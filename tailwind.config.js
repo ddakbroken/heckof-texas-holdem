@@ -8,7 +8,7 @@ module.exports = {
   theme: {
     extend: {
       screens: {
-        'xs': '440px',
+        'xs': '450px',
       },
       colors: {
         poker: {

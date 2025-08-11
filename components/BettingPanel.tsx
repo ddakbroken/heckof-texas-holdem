@@ -20,7 +20,6 @@ interface BettingPanelProps {
   currentBet: number;
   onBet: (amount: number) => void;
   onRaise: (amount: number) => void;
-  onCheck: () => void;
   onClose: () => void;
 }
 
@@ -29,7 +28,6 @@ export default function BettingPanel({
   currentBet,
   onBet,
   onRaise,
-  onCheck,
   onClose,
 }: BettingPanelProps) {
   const [betAmount, setBetAmount] = useState(currentBet);
@@ -165,14 +163,6 @@ export default function BettingPanel({
             >
               Cancel
             </button>
-            {currentBet === 0 && (
-              <button
-                onClick={onCheck}
-                className="flex-1 py-1 px-2 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700 transition-colors sm:py-2 sm:px-4 text-sm"
-              >
-                Check
-              </button>
-            )}
             <button
               onClick={handleSubmit}
               disabled={

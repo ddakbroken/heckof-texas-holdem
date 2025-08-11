@@ -35,6 +35,7 @@ interface GameState {
   lastRaiserIndex?: number;
   roundStartIndex?: number;
   showAllCards?: boolean;
+  bigBlind: number;
 }
 
 interface PokerTableProps {
@@ -103,6 +104,7 @@ export default function PokerTable({
     gameState: "waiting",
     currentPlayerIndex: 0,
     dealerIndex: 0,
+    bigBlind: 20,
   });
   const [currentPlayer, setCurrentPlayer] = useState<Player | null>(null);
   const [isConnected, setIsConnected] = useState(false);
@@ -192,6 +194,11 @@ export default function PokerTable({
     setShowBettingPanel(false);
   };
 
+  const handleCheck = () => {
+    socket?.emit("check");
+    setShowBettingPanel(false);
+  };
+
   const handleNextRound = () => {
     if (gameState?.gameState === "finished") {
       socket?.emit("continueGame");
@@ -250,7 +257,7 @@ export default function PokerTable({
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-800 to-green-900 relative overflow-hidden min-w-[350px]">
+    <div className="min-h-screen bg-gradient-to-br from-green-800 to-green-900 relative overflow-hidden min-w-[360px]">
       <div className="max-w-xl mx-auto w-full relative">
         {/* Error Message */}
         {errorMessage && (
@@ -294,7 +301,7 @@ export default function PokerTable({
           </div>
 
           {/* Players list */}
-          <div className="space-y-3">
+          <div className="space-y-3 px-2">
             {gameState.players.map((player, index) => {
               const isMe = currentPlayer?.id === player.id;
               const isTurn = index === gameState.currentPlayerIndex;
@@ -448,10 +455,13 @@ export default function PokerTable({
               roomCreator={gameState.roomCreator}
               endReason={gameState.endReason}
               currentBet={gameState.currentBet}
+              bigBlind={gameState.bigBlind}
+              round={gameState.round}
               onStartGame={handleStartGame}
               onFold={handleFold}
               onCall={handleCall}
-              onBet={() => setShowBettingPanel(true)}
+              onCheck={handleCheck}
+              onBet={handleBet}
               onRaise={() => setShowBettingPanel(true)}
               onNextRound={handleNextRound}
               onForceRestart={handleForceRestart}

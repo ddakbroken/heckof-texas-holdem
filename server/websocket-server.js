@@ -458,7 +458,8 @@ class PokerGame {
       roomCreator: this.roomCreator,
       lastRaiserIndex: this.lastRaiserIndex,
       roundStartIndex: this.roundStartIndex,
-      showAllCards: this.showAllCards
+      showAllCards: this.showAllCards,
+      bigBlind: this.bigBlind
     };
   }
 }
