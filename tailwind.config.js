@@ -7,6 +7,9 @@ module.exports = {
   ],
   theme: {
     extend: {
+      screens: {
+        'xs': '440px',
+      },
       colors: {
         poker: {
           green: '#0f5132',

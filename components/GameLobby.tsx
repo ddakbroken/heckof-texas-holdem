@@ -116,6 +116,7 @@ export default function GameLobby({ onJoinGame }: GameLobbyProps) {
           <p>• Minimum 2 players to start</p>
           <p>• Each player starts with 1000 chips</p>
           <p>• Human players only - no AI opponents</p>
+          <p>• Room creator controls when to start the game</p>
         </div>
       </div>
     </div>

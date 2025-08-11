@@ -2,15 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { io, Socket } from "socket.io-client";
-import PlayerSeat from "./PlayerSeat";
 import CommunityCards from "./CommunityCards";
 import GameControls from "./GameControls";
 import BettingPanel from "./BettingPanel";
+import PlayingCard from "./PlayingCard";
+import { formatMoney } from "../utils/formatters";
 
 interface Player {
   id: string;
   name: string;
   chips: number;
+  startingChips?: number;
   bet: number;
   hand: Array<{ suit: string; rank: string }>;
   folded: boolean;
@@ -28,7 +30,11 @@ interface GameState {
   gameState: string;
   currentPlayerIndex: number;
   dealerIndex: number;
-  endReason?: 'early_end' | 'showdown' | null;
+  endReason?: "early_end" | "showdown" | null;
+  roomCreator?: string;
+  lastRaiserIndex?: number;
+  roundStartIndex?: number;
+  showAllCards?: boolean;
 }
 
 interface PokerTableProps {
@@ -37,42 +43,15 @@ interface PokerTableProps {
   onExitToLobby: () => void;
 }
 
-// Empty seat component
-function EmptySeat({ position }: { position: number }) {
-  const seatPosition = (() => {
-    // Calculate positions around the table in a circle
-    const angle = (position * 45) - 90; // 8 positions, 45 degrees apart, starting from top
-    const radius = 35; // percentage from center
-    const x = 50 + radius * Math.cos((angle * Math.PI) / 180);
-    const y = 50 + radius * Math.sin((angle * Math.PI) / 180);
-    return { x, y };
-  })();
-
-  return (
-    <div
-      className="absolute transform -translate-x-1/2 -translate-y-1/2"
-      style={{
-        left: `${seatPosition.x}%`,
-        top: `${seatPosition.y}%`,
-      }}
-    >
-      <div className="empty-seat text-center flex flex-col items-center justify-center">
-        <div className="text-gray-400 text-xs font-medium">Seat</div>
-        <div className="text-gray-400 text-xs">#{position + 1}</div>
-      </div>
-    </div>
-  );
-}
-
 // Confirmation Dialog Component
-function ConfirmationDialog({ 
-  isOpen, 
-  onConfirm, 
-  onCancel, 
-  title, 
-  message, 
-  confirmText = "Yes", 
-  cancelText = "No" 
+function ConfirmationDialog({
+  isOpen,
+  onConfirm,
+  onCancel,
+  title,
+  message,
+  confirmText = "Yes",
+  cancelText = "No",
 }: {
   isOpen: boolean;
   onConfirm: () => void;
@@ -108,13 +87,29 @@ function ConfirmationDialog({
   );
 }
 
-export default function PokerTable({ roomId, playerName, onExitToLobby }: PokerTableProps) {
+export default function PokerTable({
+  roomId,
+  playerName,
+  onExitToLobby,
+}: PokerTableProps) {
   const [socket, setSocket] = useState<Socket | null>(null);
-  const [gameState, setGameState] = useState<GameState | null>(null);
+  const [gameState, setGameState] = useState<GameState>({
+    roomId: "",
+    players: [],
+    communityCards: [],
+    pot: 0,
+    currentBet: 0,
+    round: "preflop",
+    gameState: "waiting",
+    currentPlayerIndex: 0,
+    dealerIndex: 0,
+  });
   const [currentPlayer, setCurrentPlayer] = useState<Player | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [showBettingPanel, setShowBettingPanel] = useState(false);
   const [showExitConfirmation, setShowExitConfirmation] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [notification, setNotification] = useState<string | null>(null);
 
   useEffect(() => {
     const newSocket = io(
@@ -128,6 +123,24 @@ export default function PokerTable({ roomId, playerName, onExitToLobby }: PokerT
     });
 
     newSocket.on("gameState", (state: GameState) => {
+      // Check if room creator changed
+      if (
+        gameState.roomCreator &&
+        state.roomCreator &&
+        gameState.roomCreator !== state.roomCreator
+      ) {
+        const oldCreator =
+          gameState.players.find((p) => p.id === gameState.roomCreator)?.name ||
+          "Unknown";
+        const newCreator =
+          state.players.find((p) => p.id === state.roomCreator)?.name ||
+          "Unknown";
+        setNotification(
+          `Room creator changed from ${oldCreator} to ${newCreator}`
+        );
+        setTimeout(() => setNotification(null), 5000);
+      }
+
       setGameState(state);
       const player = state.players.find((p) => p.name === playerName);
       setCurrentPlayer(player || null);
@@ -147,6 +160,9 @@ export default function PokerTable({ roomId, playerName, onExitToLobby }: PokerT
 
     newSocket.on("error", ({ message }) => {
       console.error("Game error:", message);
+      setErrorMessage(message);
+      // Clear error message after 5 seconds
+      setTimeout(() => setErrorMessage(null), 5000);
     });
 
     return () => {
@@ -177,8 +193,8 @@ export default function PokerTable({ roomId, playerName, onExitToLobby }: PokerT
   };
 
   const handleNextRound = () => {
-    if (gameState?.gameState === 'finished') {
-      socket?.emit('continueGame');
+    if (gameState?.gameState === "finished") {
+      socket?.emit("continueGame");
     } else {
       socket?.emit("nextRound");
     }
@@ -189,7 +205,11 @@ export default function PokerTable({ roomId, playerName, onExitToLobby }: PokerT
   };
 
   const handleExitGame = () => {
-    if (gameState?.gameState === 'playing' && currentPlayer && (currentPlayer.bet ?? 0) > 0) {
+    if (
+      gameState?.gameState === "playing" &&
+      currentPlayer &&
+      (currentPlayer.bet ?? 0) > 0
+    ) {
       // Show confirmation dialog if player has bet money
       setShowExitConfirmation(true);
     } else {
@@ -229,132 +249,243 @@ export default function PokerTable({ roomId, playerName, onExitToLobby }: PokerT
     );
   }
 
-  // Create array of all 8 seat positions
-  const allSeats = Array.from({ length: 8 }, (_, index) => index);
-  const occupiedSeats = gameState.players.map((_, index) => index);
-  const emptySeats = allSeats.filter(seatIndex => !occupiedSeats.includes(seatIndex));
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-800 to-green-900 relative overflow-hidden min-w-[320px]">
-      {/* Poker Table */}
-      <div className="absolute inset-2 bg-green-700 rounded-full border-8 border-brown-800 shadow-2xl sm:inset-4">
-        <div className="absolute inset-4 bg-green-600 rounded-full border-4 border-green-800 sm:inset-8">
+    <div className="min-h-screen bg-gradient-to-br from-green-800 to-green-900 relative overflow-hidden min-w-[350px]">
+      <div className="max-w-xl mx-auto w-full relative">
+        {/* Error Message */}
+        {errorMessage && (
+          <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 bg-poker-red text-white px-4 py-2 rounded-lg shadow-lg">
+            {errorMessage}
+          </div>
+        )}
+
+        {/* Notification Message */}
+        {notification && (
+          <div className="fixed top-16 left-1/2 transform -translate-x-1/2 z-50 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg">
+            {notification}
+          </div>
+        )}
+
+        {/* Players list layout */}
+        <div className="block relative pt-28 sm:pt-36 pb-40 space-y-4 max-w-xl mx-auto w-full">
           {/* Community Cards */}
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+          <div className="flex justify-center">
             <CommunityCards
               cards={gameState.communityCards}
               round={gameState.round}
             />
           </div>
 
-          {/* Pot */}
-          <div className="absolute top-1/3 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-poker-gold sm:text-2xl">
-                Pot: ${gameState.pot}
-              </div>
-              <div className="text-sm text-gray-300 sm:text-sm">
-                Current Bet: ${gameState.currentBet}
-              </div>
+          {/* Pot info */}
+          <div className="text-center">
+            <div className="text-xl font-bold text-poker-gold">
+              Pot: {formatMoney(gameState.pot)}
             </div>
+            <div className="text-base text-gray-300">
+              Current Bet: {formatMoney(gameState.currentBet)}
+            </div>
+            {gameState.showAllCards && (
+              <div className="mt-2">
+                <span className="bg-poker-gold text-black px-2 py-1 rounded text-base font-bold">
+                  🃏 All Cards Revealed
+                </span>
+              </div>
+            )}
           </div>
 
-          {/* Empty Seat Spots */}
-          <div className="absolute inset-0">
-            {emptySeats.map((seatIndex) => (
-              <EmptySeat key={`empty-${seatIndex}`} position={seatIndex} />
-            ))}
-          </div>
+          {/* Players list */}
+          <div className="space-y-3">
+            {gameState.players.map((player, index) => {
+              const isMe = currentPlayer?.id === player.id;
+              const isTurn = index === gameState.currentPlayerIndex;
+              const showFaceUp =
+                (isMe && gameState.gameState === "playing" && !player.folded) ||
+                (gameState.showAllCards && !player.folded);
+              return (
+                <div
+                  key={player.id}
+                  className={`rounded-lg border px-3 py-2 ${
+                    isTurn ? "border-poker-gold" : "border-gray-700"
+                  } bg-poker-dark/80`}
+                >
+                  <span className="font-bold text-sm">
+                    {player.name}
+                    {isMe ? " (YOU)" : ""}
+                    {gameState.roomCreator === player.id ? " 👑" : ""}
+                  </span>
+                  <div className="flex items-center justify-between">
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-start gap-2 flex-col xs:flex-row">
+                        {gameState.players.findIndex(
+                          (p) => p.id === player.id
+                        ) === gameState.dealerIndex && (
+                          <span className="text-xs bg-poker-gold text-black px-1 rounded">
+                            DEALER
+                          </span>
+                        )}
+                      </div>
+                      {player.bet > 0 && (
+                        <div className="ext-base">
+                          <div className="text-xs text-poker-gold">Bet</div>
+                          <div className="text-poker-gold">{formatMoney(player.bet)}</div>
+                        </div>
+                      )}
+                      <div className="text-base text-gray-300">
+                        {/* Show won/lost indicator when game has ended */}
+                        {gameState.showAllCards &&
+                          player.startingChips !== undefined && (
+                            <div className="mb-1">
+                              {player.chips > player.startingChips ? (
+                                <div className="bg-green-600 text-white text-xs font-bold px-2 py-1 rounded">
+                                  +{formatMoney(player.chips - player.startingChips)} 🎉 WON
+                                </div>
+                              ) : player.chips < player.startingChips ? (
+                                <div className="bg-red-600 text-white text-xs font-bold px-2 py-1 rounded">
+                                  -{formatMoney(player.startingChips - player.chips)} 💸
+                                  LOST
+                                </div>
+                              ) : (
+                                <div className="bg-gray-600 text-white text-xs font-bold px-2 py-1 rounded">
+                                  {formatMoney(0)} ↔️ EVEN
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        <div className="text-xs">Chips</div>
+                        <div>{formatMoney(player.chips)}</div>
+                      </div>
+                      <div className="mt-1 flex gap-2 text-xs">
+                        {player.allIn && (
+                          <span className="bg-poker-red text-white px-2 rounded">
+                            ALL IN
+                          </span>
+                        )}
+                        {player.folded && (
+                          <span className="bg-gray-600 text-white px-2 rounded">
+                            FOLDED
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex gap-1 relative">
+                      {showFaceUp ? (
+                        player.hand.map((c, i) => (
+                          <PlayingCard
+                            key={i}
+                            suit={c.suit as any}
+                            rank={c.rank}
+                            showText={isMe || gameState.showAllCards}
+                          />
+                        ))
+                      ) : (
+                        <>
+                          <PlayingCard faceDown className="other-player" />
+                          <PlayingCard faceDown className="other-player" />
+                        </>
+                      )}
+                      {gameState.showAllCards && player.folded && (
+                        <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center rounded">
+                          <span className="text-white font-bold text-xs">
+                            FOLDED
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
 
-          {/* Player Seats */}
-          <div className="absolute inset-0">
-            {gameState.players.map((player, index) => (
-              <PlayerSeat
-                key={player.id}
-                player={player}
-                position={index}
-                totalPlayers={gameState.players.length}
-                isCurrentPlayer={currentPlayer?.id === player.id}
-                isDealer={index === gameState.dealerIndex}
-                isCurrentTurn={index === gameState.currentPlayerIndex}
-                gameState={gameState.gameState}
-                currentPlayerIndex={gameState.players.findIndex(
-                  (p) => p.id === currentPlayer?.id
-                )}
-              />
-            ))}
+                  {/* Player turn indicator */}
+                  {isMe && gameState.gameState === "playing" && (
+                    <div className="mt-3">
+                      {currentPlayer &&
+                        !currentPlayer.folded &&
+                        !currentPlayer.allIn && (
+                          <div className="text-center">
+                            {gameState.players.findIndex(
+                              (p) => p.id === currentPlayer.id
+                            ) === gameState.currentPlayerIndex && (
+                              <div className="text-poker-gold font-bold text-sm">
+                                Your turn!
+                              </div>
+                            )}
+                          </div>
+                        )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
-      </div>
 
-      {/* Exit Button */}
-      <div className="absolute top-2 right-2 sm:top-4 sm:right-4">
-        <button
-          onClick={handleExitGame}
-          className="bg-poker-red text-white px-4 py-2 rounded-lg font-bold hover:bg-red-700 transition-colors text-sm"
-        >
-          Exit Game
-        </button>
-      </div>
+        {/* Game Controls - Only show for current player */}
+        {currentPlayer && (
+          <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-10">
+            <GameControls
+              gameState={gameState.gameState}
+              currentPlayer={currentPlayer}
+              isMyTurn={
+                gameState.gameState === "playing" &&
+                gameState.players.findIndex(
+                  (p) => p.id === currentPlayer.id
+                ) === gameState.currentPlayerIndex
+              }
+              roomCreator={gameState.roomCreator}
+              endReason={gameState.endReason}
+              onStartGame={handleStartGame}
+              onFold={handleFold}
+              onCall={handleCall}
+              onRaise={() => setShowBettingPanel(true)}
+              onNextRound={handleNextRound}
+              onForceRestart={handleForceRestart}
+              onExitToLobby={onExitToLobby}
+            />
+          </div>
+        )}
 
-      {/* Game Controls */}
-      <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 sm:bottom-4">
-        <GameControls
-          gameState={gameState.gameState}
-          currentPlayer={currentPlayer}
-          isMyTurn={currentPlayer ? gameState.players.findIndex(p => p.id === currentPlayer.id) === gameState.currentPlayerIndex : false}
-          onStartGame={handleStartGame}
-          onFold={handleFold}
-          onCall={handleCall}
-          onRaise={() => setShowBettingPanel(true)}
-          onNextRound={handleNextRound}
-          onForceRestart={handleForceRestart}
-        />
-      </div>
-
-      {/* Betting Panel */}
-      {showBettingPanel && currentPlayer && (
-        <BettingPanel
-          player={currentPlayer}
-          currentBet={gameState.currentBet}
-          onBet={handleBet}
-          onRaise={handleRaise}
-          onClose={() => setShowBettingPanel(false)}
-        />
-      )}
-
-      {/* Room Info */}
-      <div className="absolute top-2 left-2 bg-poker-dark bg-opacity-80 p-3 rounded-lg sm:top-4 sm:left-4">
-        <div className="text-xs sm:text-sm">
-          <p className="text-poker-gold">Room: {roomId}</p>
-          <p className="text-gray-300">
-            Players: {gameState.players.length}/8
-          </p>
-          <p className="text-gray-300">Round: {gameState.round}</p>
+        {/* Exit Button */}
+        <div className="absolute top-2 right-2 sm:top-4 sm:right-4">
+          <button
+            onClick={handleExitGame}
+            className="bg-poker-red text-white px-4 py-2 rounded-lg font-bold hover:bg-red-700 transition-colors text-sm"
+          >
+            Exit Game
+          </button>
         </div>
+
+        {/* Betting Panel */}
+        {showBettingPanel && currentPlayer && (
+          <BettingPanel
+            player={currentPlayer}
+            currentBet={gameState.currentBet}
+            onBet={handleBet}
+            onRaise={handleRaise}
+            onClose={() => setShowBettingPanel(false)}
+          />
+        )}
+
+        {/* Room Info */}
+        <div className="absolute top-2 left-2 bg-poker-dark bg-opacity-80 p-3 rounded-lg">
+          <div className="text-sm sm:text-base">
+            <p className="text-poker-gold">Room: {roomId}</p>
+            <p className="text-gray-300">
+              Players: {gameState.players.length} / 8 max
+            </p>
+          </div>
+        </div>
+
+        {/* Exit Confirmation Dialog */}
+        <ConfirmationDialog
+          isOpen={showExitConfirmation}
+          onConfirm={confirmExit}
+          onCancel={cancelExit}
+          title="Exit Game"
+          message={`Are you sure you want to exit? You will lose your current bet of ${
+            currentPlayer ? formatMoney(currentPlayer.bet) : formatMoney(0)
+          } and any chips in the pot.`}
+          confirmText="Exit Game"
+          cancelText="Stay"
+        />
       </div>
-
-      {/* Exit Confirmation Dialog */}
-      <ConfirmationDialog
-        isOpen={showExitConfirmation}
-        onConfirm={confirmExit}
-        onCancel={cancelExit}
-        title="Exit Game"
-        message={`Are you sure you want to exit? You will lose your current bet of $${currentPlayer ? currentPlayer.bet : 0} and any chips in the pot.`}
-        confirmText="Exit Game"
-        cancelText="Stay"
-      />
-
-      {/* Finish Modal: show when game ends (e.g., early_end when other players quit) */}
-      <ConfirmationDialog
-        isOpen={gameState.gameState === 'finished'}
-        onConfirm={() => socket?.emit('continueGame')}
-        onCancel={onExitToLobby}
-        title={gameState.endReason === 'early_end' ? 'Hand Ended Early' : 'Hand Finished'}
-        message={gameState.endReason === 'early_end' ? 'All other players left or folded. Do you want to continue with a new hand or exit to lobby?' : 'Hand finished. Do you want to play another hand or exit to lobby?'}
-        confirmText="Continue"
-        cancelText="Exit"
-      />
     </div>
   );
 }

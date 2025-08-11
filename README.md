@@ -54,6 +54,8 @@ This will start both:
 
 2. **Start the Game**:
    - Wait for at least 2 players to join
+   - Only the room creator (first player to join) can start the game
+   - Look for the 👑 crown icon next to the room creator's name
    - Click "Start Game" to begin
 
 3. **Gameplay**:
@@ -125,7 +127,6 @@ texas-holdem-game/
 │   ├── CommunityCards.tsx # Community cards display
 │   ├── GameControls.tsx   # Game action buttons
 │   ├── GameLobby.tsx      # Lobby interface
-│   ├── PlayerSeat.tsx     # Individual player display
 │   └── PokerTable.tsx     # Main game table
 ├── server/                # WebSocket server
 │   └── websocket-server.js # Game logic server

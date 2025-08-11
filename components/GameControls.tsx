@@ -15,24 +15,30 @@ interface GameControlsProps {
   gameState: string;
   currentPlayer: Player | null;
   isMyTurn: boolean;
+  roomCreator?: string;
+  endReason?: "early_end" | "showdown" | null;
   onStartGame: () => void;
   onFold: () => void;
   onCall: () => void;
   onRaise: () => void;
   onNextRound: () => void;
   onForceRestart?: () => void;
+  onExitToLobby?: () => void;
 }
 
 export default function GameControls({
   gameState,
   currentPlayer,
   isMyTurn,
+  roomCreator,
+  endReason,
   onStartGame,
   onFold,
   onCall,
   onRaise,
   onNextRound,
   onForceRestart,
+  onExitToLobby,
 }: GameControlsProps) {
   const canAct =
     currentPlayer &&
@@ -45,12 +51,25 @@ export default function GameControls({
     <div className="bg-poker-dark bg-opacity-90 p-2 rounded-lg border-2 border-poker-gold sm:p-4">
       {gameState === "waiting" ? (
         <div className="text-center">
-          <button onClick={onStartGame} className="game-button">
-            Start Game
-          </button>
-          <p className="text-xs text-gray-300 mt-2 sm:text-sm">
-            Waiting for players...
-          </p>
+          {currentPlayer && roomCreator === currentPlayer.id ? (
+            <>
+              <button onClick={onStartGame} className="game-button">
+                Start Game
+              </button>
+              <p className="text-xs text-gray-300 mt-2 sm:text-sm">
+                Waiting for players... (You can start the game)
+              </p>
+            </>
+          ) : (
+            <div className="text-center">
+              <p className="text-xs text-gray-300 sm:text-sm">
+                Waiting for room creator to start the game...
+              </p>
+              <p className="text-xs text-gray-400 mt-1">
+                (Look for the 👑 crown icon)
+              </p>
+            </div>
+          )}
         </div>
       ) : gameState === "playing" ? (
         <div className="flex gap-1 sm:gap-2">
@@ -104,9 +123,29 @@ export default function GameControls({
         </div>
       ) : gameState === "finished" ? (
         <div className="text-center">
-          <button onClick={onNextRound} className="game-button">
-            Next Round
-          </button>
+          <div className="mb-3">
+            <h3 className="text-lg font-bold text-poker-gold mb-2">
+              {endReason === "early_end" ? "Hand Ended Early" : "Hand Finished"}
+            </h3>
+            <p className="text-sm text-gray-300">
+              {endReason === "early_end"
+                ? "All other players left or folded."
+                : "Hand finished."}
+            </p>
+          </div>
+          <div className="flex gap-2 justify-center">
+            <button onClick={onNextRound} className="game-button">
+              Continue
+            </button>
+            {onExitToLobby && (
+              <button 
+                onClick={onExitToLobby} 
+                className="bg-gray-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-gray-700 transition-colors text-sm"
+              >
+                Exit
+              </button>
+            )}
+          </div>
         </div>
       ) : gameState === "restarting" ? (
         <div className="text-center">

@@ -46,6 +46,11 @@ class PokerGame {
     this.smallBlind = 10;
     this.bigBlind = 20;
     this.endReason = null; // 'early_end' | 'showdown' | null
+    this.roomCreator = null; // Track the room creator
+    this.lastRaiserIndex = -1; // Track the last player who raised
+    this.roundStartIndex = 0; // Track where the round started
+    this.showAllCards = false; // Show all players' cards when game ends
+    this.roundStartChips = new Map(); // Track starting chips for each player
     this.initializeDeck();
   }
 
@@ -110,16 +115,26 @@ class PokerGame {
     this.gameState = 'playing';
     this.endReason = null;
     
-    // Reset player states
+    // Rotate dealer to next player
+    const playerArray = Array.from(this.players.values());
+    this.dealerIndex = (this.dealerIndex + 1) % playerArray.length;
+    
+    // Reset player states and record starting chips
     this.players.forEach(player => {
       player.hand = [];
       player.bet = 0;
       player.folded = false;
       player.allIn = false;
+      player.startingChips = player.chips; // Record starting chips for this round
     });
 
     this.dealCards();
     this.postBlinds();
+    
+    // Initialize round tracking variables
+    this.roundStartIndex = this.currentPlayerIndex;
+    this.lastRaiserIndex = -1;
+    this.showAllCards = false; // Reset card visibility for new round
     
     // Update game state for all players
     io.to(this.roomId).emit('gameState', this.getGameState());
@@ -154,6 +169,18 @@ class PokerGame {
       this.pot += this.bigBlind;
       this.currentBet = this.bigBlind;
     }
+
+    // Set the first player to act after blinds are posted
+    // In a 2-player game, the first player to act is the one after the big blind
+    // Since dealer is 0, small blind is 1, big blind would be 2, but with 2 players it wraps to 0
+    // So the first player to act should be the dealer (index 0)
+    if (playerArray.length === 2) {
+      // In 2-player game, dealer acts first after big blind
+      this.currentPlayerIndex = this.dealerIndex;
+    } else {
+      // In games with more players, first player to act is after the big blind
+      this.currentPlayerIndex = (bigBlindIndex + 1) % playerArray.length;
+    }
   }
 
   addPlayer(playerId, playerName) {
@@ -165,6 +192,7 @@ class PokerGame {
       id: playerId,
       name: playerName,
       chips: 1000,
+      startingChips: 1000, // Track starting chips for this round
       bet: 0,
       hand: [],
       folded: false,
@@ -173,11 +201,26 @@ class PokerGame {
     };
 
     this.players.set(playerId, player);
+    
+    // Set the first player as the room creator
+    if (this.players.size === 1) {
+      this.roomCreator = playerId;
+    }
+    
     console.log(`${playerName} added to room ${this.roomId}`);
     return true;
   }
 
   removePlayer(playerId) {
+    // If the room creator is leaving, assign the next player as creator
+    if (this.roomCreator === playerId && this.players.size > 1) {
+      const remainingPlayers = Array.from(this.players.keys()).filter(id => id !== playerId);
+      if (remainingPlayers.length > 0) {
+        this.roomCreator = remainingPlayers[0];
+        console.log(`Room creator left. New creator assigned: ${this.roomCreator}`);
+      }
+    }
+    
     this.players.delete(playerId);
     console.log(`Player ${playerId} removed from room ${this.roomId}`);
   }
@@ -195,10 +238,21 @@ class PokerGame {
     }
     
     let nextIndex = (this.currentPlayerIndex + 1) % playerArray.length;
+    let attempts = 0;
+    const maxAttempts = playerArray.length;
     
-    // Skip folded players
-    while (playerArray[nextIndex] && playerArray[nextIndex].folded && nextIndex !== this.currentPlayerIndex) {
+    // Skip folded players, but prevent infinite loops
+    while (playerArray[nextIndex] && playerArray[nextIndex].folded && nextIndex !== this.currentPlayerIndex && attempts < maxAttempts) {
       nextIndex = (nextIndex + 1) % playerArray.length;
+      attempts++;
+    }
+    
+    // If we couldn't find a non-folded player, check if all players are folded
+    if (attempts >= maxAttempts || playerArray[nextIndex]?.folded) {
+      console.log('All players have folded - restarting the game');
+      this.returnPotToPlayers();
+      this.restartGame();
+      return;
     }
     
     this.currentPlayerIndex = nextIndex;
@@ -218,6 +272,8 @@ class PokerGame {
       this.nextRound();
     } else {
       console.log(`Next player: ${nextPlayer?.name}`);
+      // Emit updated game state after moving to next player
+      io.to(this.roomId).emit('gameState', this.getGameState());
     }
   }
 
@@ -232,7 +288,18 @@ class PokerGame {
     
     // Check if all active players have bet the same amount
     const firstBet = activePlayers[0].bet;
-    return activePlayers.every(p => p.bet === firstBet || p.allIn);
+    const allBetsEqual = activePlayers.every(p => p.bet === firstBet || p.allIn);
+    
+    // If bets are not equal, round is not complete
+    if (!allBetsEqual) return false;
+    
+    // If no one has raised in this round, round is complete when we reach the round start
+    if (this.lastRaiserIndex === -1) {
+      return this.currentPlayerIndex === this.roundStartIndex;
+    }
+    
+    // If someone has raised, round is complete when we reach the last raiser
+    return this.currentPlayerIndex === this.lastRaiserIndex;
   }
 
   shouldEndGameEarly() {
@@ -319,7 +386,22 @@ class PokerGame {
       player.bet = 0;
     });
     this.currentBet = 0;
-    this.currentPlayerIndex = (this.dealerIndex + 1) % this.players.size;
+    
+    // Set the first player to act in the new round
+    // After pre-flop, the first player to act is the player to the left of the dealer (small blind position)
+    const playerArray = Array.from(this.players.values());
+    this.currentPlayerIndex = (this.dealerIndex + 1) % playerArray.length;
+    
+    // Skip folded players to find the first active player
+    while (playerArray[this.currentPlayerIndex] && playerArray[this.currentPlayerIndex].folded && this.currentPlayerIndex !== this.dealerIndex) {
+      this.currentPlayerIndex = (this.currentPlayerIndex + 1) % playerArray.length;
+    }
+    
+    // Reset round tracking variables
+    this.roundStartIndex = this.currentPlayerIndex;
+    this.lastRaiserIndex = -1;
+    
+    console.log(`New round ${this.round} started. First player to act: ${playerArray[this.currentPlayerIndex]?.name}`);
     
     io.to(this.roomId).emit('gameState', this.getGameState());
   }
@@ -327,6 +409,9 @@ class PokerGame {
   determineWinner() {
     const playerArray = Array.from(this.players.values());
     const activePlayers = playerArray.filter(p => !p.folded);
+    
+    // Show all players' cards when the game ends
+    this.showAllCards = true;
     
     if (activePlayers.length === 1) {
       // Only one player remains - they win by default
@@ -365,7 +450,11 @@ class PokerGame {
       gameState: this.gameState,
       currentPlayerIndex: this.currentPlayerIndex,
       dealerIndex: this.dealerIndex,
-      endReason: this.endReason
+      endReason: this.endReason,
+      roomCreator: this.roomCreator,
+      lastRaiserIndex: this.lastRaiserIndex,
+      roundStartIndex: this.roundStartIndex,
+      showAllCards: this.showAllCards
     };
   }
 }
@@ -386,6 +475,14 @@ io.on('connection', (socket) => {
       socket.roomId = roomId;
       socket.playerName = playerName;
       
+      // If the game is already in progress, set starting chips to current chips
+      if (game.gameState === 'playing') {
+        const player = game.players.get(socket.id);
+        if (player) {
+          player.startingChips = player.chips;
+        }
+      }
+      
       io.to(roomId).emit('gameState', game.getGameState());
       io.to(roomId).emit('playerJoined', { playerId: socket.id, playerName });
       
@@ -398,6 +495,11 @@ io.on('connection', (socket) => {
   socket.on('startGame', () => {
     const game = games.get(socket.roomId);
     if (game) {
+      // Check if the player is the room creator
+      if (game.roomCreator !== socket.id) {
+        socket.emit('error', { message: 'Only the room creator can start the game' });
+        return;
+      }
       
       if (game.players.size >= MIN_PLAYERS) {
         game.gameState = 'playing';
@@ -425,6 +527,13 @@ io.on('connection', (socket) => {
           player.allIn = true;
         }
         
+        // Track this as a raise if it's more than the current bet
+        if (player.bet > game.currentBet) {
+          game.currentBet = player.bet;
+          game.lastRaiserIndex = game.currentPlayerIndex;
+        }
+        
+        // Emit game state before moving to next player to show the bet action
         io.to(socket.roomId).emit('gameState', game.getGameState());
         game.moveToNextPlayer();
       }
@@ -438,6 +547,8 @@ io.on('connection', (socket) => {
       if (player && !player.folded) {
         console.log(`${player.name} is folding`);
         player.folded = true;
+        
+        // Emit game state before moving to next player to show the fold action
         io.to(socket.roomId).emit('gameState', game.getGameState());
         
         // Check if all players have folded after this fold
@@ -467,6 +578,7 @@ io.on('connection', (socket) => {
           player.allIn = true;
         }
         
+        // Emit game state before moving to next player to show the call action
         io.to(socket.roomId).emit('gameState', game.getGameState());
         game.moveToNextPlayer();
       }
@@ -488,6 +600,10 @@ io.on('connection', (socket) => {
           player.allIn = true;
         }
         
+        // Track this as a raise
+        game.lastRaiserIndex = game.currentPlayerIndex;
+        
+        // Emit game state before moving to next player to show the raise action
         io.to(socket.roomId).emit('gameState', game.getGameState());
         game.moveToNextPlayer();
       }
@@ -523,6 +639,16 @@ io.on('connection', (socket) => {
           // Mark as folded/inactive for the rest of the hand
           player.folded = true;
           player.isActive = false;
+          
+          // If the room creator is leaving during gameplay, assign next player as creator
+          if (game.roomCreator === socket.id) {
+            const remainingPlayers = Array.from(game.players.keys()).filter(id => id !== socket.id);
+            if (remainingPlayers.length > 0) {
+              game.roomCreator = remainingPlayers[0];
+              console.log(`Room creator left during gameplay. New creator assigned: ${game.roomCreator}`);
+            }
+          }
+          
           io.to(socket.roomId).emit('gameState', game.getGameState());
 
           // Advance turn if it was their turn
@@ -572,6 +698,16 @@ io.on('connection', (socket) => {
             // Treat as folded/inactive for remainder of the hand
             player.folded = true;
             player.isActive = false;
+            
+            // If the room creator is disconnecting during gameplay, assign next player as creator
+            if (game.roomCreator === socket.id) {
+              const remainingPlayers = Array.from(game.players.keys()).filter(id => id !== socket.id);
+              if (remainingPlayers.length > 0) {
+                game.roomCreator = remainingPlayers[0];
+                console.log(`Room creator disconnected during gameplay. New creator assigned: ${game.roomCreator}`);
+              }
+            }
+            
             io.to(socket.roomId).emit('gameState', game.getGameState());
 
             // If everyone else folded, handle restart; else advance turn

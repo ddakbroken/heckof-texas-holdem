@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { formatMoney } from "../utils/formatters";
 
 interface Player {
   id: string;
@@ -50,7 +51,7 @@ export default function BettingPanel({
             {action === "bet" ? "Place Bet" : "Raise"}
           </h3>
           <p className="text-gray-300 sm:text-sm text-xs">
-            Your chips: ${player.chips} | Current bet: ${currentBet}
+            Your chips: {formatMoney(player.chips)} | Current bet: {formatMoney(currentBet)}
           </p>
         </div>
 
@@ -111,7 +112,7 @@ export default function BettingPanel({
                   disabled={amount > player.chips}
                   className="py-1 px-2 bg-gray-700 text-white rounded-lg text-xs hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed sm:py-2 sm:px-3"
                 >
-                  ${amount}
+                  {formatMoney(amount)}
                 </button>
               ))}
             </div>
