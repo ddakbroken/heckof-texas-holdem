@@ -17,9 +17,11 @@ interface GameControlsProps {
   isMyTurn: boolean;
   roomCreator?: string;
   endReason?: "early_end" | "showdown" | null;
+  currentBet: number;
   onStartGame: () => void;
   onFold: () => void;
   onCall: () => void;
+  onBet: () => void;
   onRaise: () => void;
   onNextRound: () => void;
   onForceRestart?: () => void;
@@ -32,9 +34,11 @@ export default function GameControls({
   isMyTurn,
   roomCreator,
   endReason,
+  currentBet,
   onStartGame,
   onFold,
   onCall,
+  onBet,
   onRaise,
   onNextRound,
   onForceRestart,
@@ -82,12 +86,25 @@ export default function GameControls({
                 Fold
               </button>
 
-              <button
-                onClick={onCall}
-                className="action-button bg-blue-600 hover:bg-blue-700"
-              >
-                Call
-              </button>
+              {/* Show Bet button when there's no current bet (initial betting) */}
+              {currentPlayer && currentPlayer.bet === 0 && (
+                <button
+                  onClick={onBet}
+                  className="action-button bg-green-600 hover:bg-green-700"
+                >
+                  Bet
+                </button>
+              )}
+
+              {/* Show Call button when there's a current bet to call */}
+              {currentPlayer && currentBet > currentPlayer.bet && (
+                <button
+                  onClick={onCall}
+                  className="action-button bg-blue-600 hover:bg-blue-700"
+                >
+                  Call
+                </button>
+              )}
 
               <button
                 onClick={onRaise}

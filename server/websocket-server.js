@@ -129,7 +129,11 @@ class PokerGame {
     });
 
     this.dealCards();
-    this.postBlinds();
+    // Don't post blinds automatically - let players bet manually
+    // this.postBlinds();
+    
+    // Start with the first player (dealer position) for manual betting
+    this.currentPlayerIndex = this.dealerIndex;
     
     // Initialize round tracking variables
     this.roundStartIndex = this.currentPlayerIndex;
@@ -138,7 +142,7 @@ class PokerGame {
     
     // Update game state for all players
     io.to(this.roomId).emit('gameState', this.getGameState());
-    console.log('New round started, game state updated');
+    console.log('New round started, game state updated - waiting for players to bet');
   }
 
   restartGame() {
@@ -401,7 +405,7 @@ class PokerGame {
     this.roundStartIndex = this.currentPlayerIndex;
     this.lastRaiserIndex = -1;
     
-    console.log(`New round ${this.round} started. First player to act: ${playerArray[this.currentPlayerIndex]?.name}`);
+    console.log(`New round ${this.round} started. First player to act: ${playerArray[this.currentPlayerIndex]?.name} - waiting for players to bet`);
     
     io.to(this.roomId).emit('gameState', this.getGameState());
   }

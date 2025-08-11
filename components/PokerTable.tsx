@@ -323,6 +323,22 @@ export default function PokerTable({
                             DEALER
                           </span>
                         )}
+                        {/* Small Blind indicator */}
+                        {gameState.players.findIndex(
+                          (p) => p.id === player.id
+                        ) === (gameState.dealerIndex + 1) % gameState.players.length && (
+                          <span className="text-xs bg-blue-600 text-white px-1 rounded">
+                            SB
+                          </span>
+                        )}
+                        {/* Big Blind indicator */}
+                        {gameState.players.findIndex(
+                          (p) => p.id === player.id
+                        ) === (gameState.dealerIndex + 2) % gameState.players.length && (
+                          <span className="text-xs bg-red-600 text-white px-1 rounded">
+                            BB
+                          </span>
+                        )}
                       </div>
                       {player.bet > 0 && (
                         <div className="ext-base">
@@ -330,28 +346,28 @@ export default function PokerTable({
                           <div className="text-poker-gold">{formatMoney(player.bet)}</div>
                         </div>
                       )}
-                      <div className="text-base text-gray-300">
-                        {/* Show won/lost indicator when game has ended */}
-                        {gameState.showAllCards &&
-                          player.startingChips !== undefined && (
-                            <div className="mb-1">
-                              {player.chips > player.startingChips ? (
-                                <div className="bg-green-600 text-white text-xs font-bold px-2 py-1 rounded">
-                                  +{formatMoney(player.chips - player.startingChips)} 🎉 WON
-                                </div>
-                              ) : player.chips < player.startingChips ? (
-                                <div className="bg-red-600 text-white text-xs font-bold px-2 py-1 rounded">
-                                  -{formatMoney(player.startingChips - player.chips)} 💸
-                                  LOST
-                                </div>
-                              ) : (
-                                <div className="bg-gray-600 text-white text-xs font-bold px-2 py-1 rounded">
-                                  {formatMoney(0)} ↔️ EVEN
-                                </div>
-                              )}
+                      
+                      {/* Won/Lost indicator - show above chips only when game is over */}
+                      {gameState.showAllCards && player.startingChips !== undefined && (
+                        <div className="mb-2">
+                          {player.chips > player.startingChips ? (
+                            <div className="bg-green-600 text-white text-xs font-bold px-2 py-1 rounded">
+                              +{formatMoney(player.chips - player.startingChips)} 🎉 WON
+                            </div>
+                          ) : player.chips < player.startingChips ? (
+                            <div className="bg-red-600 text-white text-xs font-bold px-2 py-1 rounded">
+                              -{formatMoney(player.startingChips - player.chips)} 💸 LOST
+                            </div>
+                          ) : (
+                            <div className="bg-gray-600 text-white text-xs font-bold px-2 py-1 rounded">
+                              {formatMoney(0)} ↔️ EVEN
                             </div>
                           )}
-                        <div className="text-xs">Chips</div>
+                        </div>
+                      )}
+                      
+                      <div className="text-base text-gray-300">
+                        <div className="text-xs xs:text-sm sm:text-base">Chips</div>
                         <div>{formatMoney(player.chips)}</div>
                       </div>
                       <div className="mt-1 flex gap-2 text-xs">
@@ -431,9 +447,11 @@ export default function PokerTable({
               }
               roomCreator={gameState.roomCreator}
               endReason={gameState.endReason}
+              currentBet={gameState.currentBet}
               onStartGame={handleStartGame}
               onFold={handleFold}
               onCall={handleCall}
+              onBet={() => setShowBettingPanel(true)}
               onRaise={() => setShowBettingPanel(true)}
               onNextRound={handleNextRound}
               onForceRestart={handleForceRestart}
