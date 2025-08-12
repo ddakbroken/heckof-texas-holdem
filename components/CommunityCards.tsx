@@ -31,7 +31,7 @@ export default function CommunityCards({ cards, round }: CommunityCardsProps) {
   };
 
   return (
-    <div className="text-center">
+    <div className="text-center w-full">
       {/* Round Display */}
       <div className="mb-4">
         <div className="text-lg font-bold text-poker-gold">
@@ -40,7 +40,7 @@ export default function CommunityCards({ cards, round }: CommunityCardsProps) {
       </div>
 
       {/* Community Cards */}
-      <div className="flex justify-center gap-1 xs:gap-2 sm:gap-3">
+      <div className="flex justify-between gap-1 xs:gap-2 sm:gap-3 w-full px-2 sm:px-0">
         {cards.map((card, index) => (
           <div key={index} className="flex flex-col items-center">
             <PlayingCard

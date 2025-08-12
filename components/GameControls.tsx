@@ -1,5 +1,7 @@
 "use client";
 
+import { formatMoney } from "../utils/formatters";
+
 interface Player {
   id: string;
   name: string;
@@ -92,23 +94,13 @@ export default function GameControls({
                 Fold
               </button>
 
-              {/* Show Check button when there's no current bet to call */}
-              {currentBet === 0 && (
+              {/* Show Check button when there's no current bet to call or player has matched the bet */}
+              {(currentBet === 0 || (currentPlayer && currentPlayer.bet === currentBet)) && (
                 <button
                   onClick={onCheck}
                   className="action-button bg-green-600 hover:bg-green-700"
                 >
                   Check
-                </button>
-              )}
-
-              {/* Show Bet button only during preflop when no one has bet */}
-              {round === "preflop" && currentBet === 0 && currentPlayer && currentPlayer.bet === 0 && (
-                <button
-                  onClick={() => onBet(bigBlind)}
-                  className="action-button bg-blue-600 hover:bg-blue-700"
-                >
-                  Bet ({bigBlind})
                 </button>
               )}
 
@@ -118,7 +110,7 @@ export default function GameControls({
                   onClick={onCall}
                   className="action-button bg-blue-600 hover:bg-blue-700"
                 >
-                  Call
+                  Call ({formatMoney(currentBet - currentPlayer.bet)})
                 </button>
               )}
 
@@ -126,7 +118,7 @@ export default function GameControls({
                 onClick={onRaise}
                 className="action-button bg-poker-red hover:bg-red-700"
               >
-                Raise
+                {currentBet === 0 ? `Bet` : `Raise`}
               </button>
             </>
           )}
