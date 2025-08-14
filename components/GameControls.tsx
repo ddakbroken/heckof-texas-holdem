@@ -1,39 +1,7 @@
 "use client";
 
 import { formatMoney } from "../utils/formatters";
-
-interface Player {
-  id: string;
-  name: string;
-  chips: number;
-  bet: number;
-  hand: Array<{ suit: string; rank: string }>;
-  folded: boolean;
-  allIn: boolean;
-  isActive: boolean;
-}
-
-interface GameControlsProps {
-  gameState: string;
-  currentPlayer: Player | null;
-  players: Player[];
-  isMyTurn: boolean;
-  roomCreator?: string;
-  endReason?: "early_end" | "showdown" | null;
-  currentBet: number;
-  bigBlind: number;
-  round: string;
-  isStartingGame?: boolean;
-  onStartGame: () => void;
-  onFold: () => void;
-  onCall: () => void;
-  onCheck: () => void;
-  onBet: (amount: number) => void;
-  onRaise: () => void;
-  onNextRound: () => void;
-  onForceRestart?: () => void;
-  onExitToLobby?: () => void;
-}
+import { GameControlsProps } from "../types";
 
 export default function GameControls({
   gameState,
@@ -43,14 +11,11 @@ export default function GameControls({
   roomCreator,
   endReason,
   currentBet,
-  bigBlind,
-  round,
   isStartingGame = false,
   onStartGame,
   onFold,
   onCall,
   onCheck,
-  onBet,
   onRaise,
   onNextRound,
   onForceRestart,

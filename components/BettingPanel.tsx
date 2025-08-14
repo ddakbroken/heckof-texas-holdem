@@ -2,26 +2,7 @@
 
 import { useState } from "react";
 import { formatMoney } from "../utils/formatters";
-
-interface Player {
-  id: string;
-  name: string;
-  chips: number;
-  bet: number;
-  hand: Array<{ suit: string; rank: string }>;
-  folded: boolean;
-  allIn: boolean;
-  isActive: boolean;
-  isAI?: boolean;
-}
-
-interface BettingPanelProps {
-  player: Player;
-  currentBet: number;
-  onBet: (amount: number) => void;
-  onRaise: (amount: number) => void;
-  onClose: () => void;
-}
+import { BettingPanelProps } from "../types";
 
 export default function BettingPanel({
   player,

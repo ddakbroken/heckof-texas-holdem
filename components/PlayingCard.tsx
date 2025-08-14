@@ -1,16 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-
-export type Suit = "hearts" | "diamonds" | "clubs" | "spades";
-
-export interface PlayingCardProps {
-  suit?: Suit;
-  rank?: string;
-  faceDown?: boolean;
-  className?: string;
-  showText?: boolean;
-}
+import { Suit, PlayingCardProps } from "../types";
 
 function getSuitSymbol(suit: Suit): string {
   switch (suit) {
@@ -27,16 +18,11 @@ function getSuitSymbol(suit: Suit): string {
   }
 }
 
-function isRed(suit: Suit): boolean {
-  return suit === "hearts" || suit === "diamonds";
-}
-
 export default function PlayingCard({
   suit = "spades",
   rank = "A",
   faceDown = false,
   className = "",
-  showText = false,
 }: PlayingCardProps) {
   // Use locally downloaded assets prepared at build/install time
   const cdnBase = "/cards";
@@ -66,7 +52,7 @@ export default function PlayingCard({
 
   useEffect(() => {
     setImgSrc(faceDown ? back : frontPng);
-  }, [faceDown, frontPng]);
+  }, [faceDown, frontPng, back]);
 
   const getCardText = () => {
     if (faceDown) return "";

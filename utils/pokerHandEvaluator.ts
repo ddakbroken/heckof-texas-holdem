@@ -1,3 +1,5 @@
+import { Card } from "../types";
+
 // Poker hand evaluation utilities
 
 export const SUITS = ['hearts', 'diamonds', 'clubs', 'spades'] as const;
@@ -21,10 +23,6 @@ export const HAND_RANKINGS = {
   ROYAL_FLUSH: 10
 } as const;
 
-export interface Card {
-  suit: string;
-  rank: string;
-}
 
 export interface HandEvaluation {
   rank: number;

@@ -11,44 +11,7 @@ import {
   evaluateHand,
   formatHandDescription,
 } from "../utils/pokerHandEvaluator";
-
-interface Player {
-  id: string;
-  name: string;
-  chips: number;
-  startingChips?: number;
-  bet: number;
-  hand: Array<{ suit: string; rank: string }>;
-  folded: boolean;
-  allIn: boolean;
-  isActive: boolean;
-}
-
-interface GameState {
-  roomId: string;
-  players: Player[];
-  communityCards: Array<{ suit: string; rank: string }>;
-  pot: number;
-  sidePots?: Array<{ amount: number; players: string[] }>;
-  currentBet: number;
-  round: string;
-  gameState: string;
-  currentPlayerIndex: number;
-  dealerIndex: number;
-  endReason?: "early_end" | "showdown" | null;
-  roomCreator?: string;
-  lastRaiserIndex?: number;
-  roundStartIndex?: number;
-  showAllCards?: boolean;
-  bigBlind: number;
-  blindsPosted?: boolean;
-}
-
-interface PokerTableProps {
-  roomId: string;
-  playerName: string;
-  onExitToLobby: () => void;
-}
+import { Player, GameState, PokerTableProps } from "../types";
 
 // Confirmation Dialog Component
 function ConfirmationDialog({
@@ -179,11 +142,11 @@ export default function PokerTable({
       setCurrentPlayer(player || null);
     });
 
-    newSocket.on("playerJoined", ({ playerId, playerName }) => {
+    newSocket.on("playerJoined", ({ playerName }) => {
       console.log(`${playerName} joined the game`);
     });
 
-    newSocket.on("playerLeft", ({ playerId }) => {
+    newSocket.on("playerLeft", () => {
       console.log("Player left the game");
     });
 
@@ -202,7 +165,7 @@ export default function PokerTable({
     return () => {
       newSocket.close();
     };
-  }, [roomId, playerName]);
+  }, [roomId, playerName, gameState.roomCreator, gameState.players]);
 
   const handleStartGame = () => {
     if (!isConnected || isStartingGame) return;
@@ -339,7 +302,7 @@ export default function PokerTable({
                       <div className="bg-cyan-600/90 backdrop-blur-sm text-white px-4 py-2 rounded-lg text-lg font-bold border border-cyan-300/30">
                         🎮{" "}
                         {gameState.players[gameState.currentPlayerIndex]?.name}
-                        's Turn
+                        &apos;s Turn
                       </div>
                     )}
                   </div>
@@ -540,9 +503,8 @@ export default function PokerTable({
                         player.hand.map((c, i) => (
                           <PlayingCard
                             key={i}
-                            suit={c.suit as any}
+                            suit={c.suit as "hearts" | "diamonds" | "clubs" | "spades"}
                             rank={c.rank}
-                            showText={isMe || gameState.showAllCards}
                           />
                         ))
                       ) : (
@@ -582,14 +544,11 @@ export default function PokerTable({
               roomCreator={gameState.roomCreator}
               endReason={gameState.endReason}
               currentBet={gameState.currentBet}
-              bigBlind={gameState.bigBlind}
-              round={gameState.round}
               isStartingGame={isStartingGame}
               onStartGame={handleStartGame}
               onFold={handleFold}
               onCall={handleCall}
               onCheck={handleCheck}
-              onBet={handleBet}
               onRaise={() => setShowBettingPanel(true)}
               onNextRound={handleNextRound}
               onForceRestart={handleForceRestart}

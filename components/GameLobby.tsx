@@ -1,10 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-
-interface GameLobbyProps {
-  onJoinGame: (roomId: string, playerName: string) => void
-}
+import { GameLobbyProps } from '../types'
 
 export default function GameLobby({ onJoinGame }: GameLobbyProps) {
   const [playerName, setPlayerName] = useState('')
@@ -35,7 +32,7 @@ export default function GameLobby({ onJoinGame }: GameLobbyProps) {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-teal-800 to-teal-900">
       <div className="bg-poker-dark/90 backdrop-blur-md p-8 rounded-lg shadow-2xl border border-poker-gold/60 max-w-md w-full">
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-poker-gold mb-2">Texas Hold'em</h1>
+          <h1 className="text-4xl font-bold text-poker-gold mb-2">Texas Hold&apos;em</h1>
           <p className="text-gray-300">Join a poker game with up to 8 players</p>
         </div>
 

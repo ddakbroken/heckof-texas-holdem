@@ -1,16 +1,7 @@
 "use client";
 
 import PlayingCard from "./PlayingCard";
-
-interface Card {
-  suit: string;
-  rank: string;
-}
-
-interface CommunityCardsProps {
-  cards: Card[];
-  round: string;
-}
+import { CommunityCardsProps } from "../types";
 
 export default function CommunityCards({ cards, round }: CommunityCardsProps) {
   const getRoundDisplay = () => {
@@ -44,7 +35,7 @@ export default function CommunityCards({ cards, round }: CommunityCardsProps) {
         {cards.map((card, index) => (
           <div key={index} className="flex flex-col items-center">
             <PlayingCard
-              suit={card.suit as any}
+              suit={card.suit}
               rank={card.rank}
               className="comminity-cards"
             />
