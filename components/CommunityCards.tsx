@@ -59,7 +59,9 @@ export default function CommunityCards({ cards, round }: CommunityCardsProps) {
                 key={`placeholder-${index}`}
                 className="flex flex-col items-center"
               >
-                <div className="card-placeholder"></div>
+                <div className="card-placeholder">
+                  <div className="text-xs text-gray-400 mt-1">heckof.ai</div>
+                </div>
               </div>
             ))}
           </>
@@ -73,7 +75,9 @@ export default function CommunityCards({ cards, round }: CommunityCardsProps) {
                 className="flex flex-col items-center"
               >
                 <div className="card-placeholder"></div>
-                <div className="text-xs text-gray-400 mt-1">?</div>
+                <div className="text-xs text-gray-400 mt-1">
+                  <div className="text-xs text-gray-400 mt-1">heckof.ai</div>
+                </div>
               </div>
             ))}
           </>
@@ -83,7 +87,9 @@ export default function CommunityCards({ cards, round }: CommunityCardsProps) {
           <>
             <div className="flex flex-col items-center">
               <div className="card-placeholder"></div>
-              <div className="text-xs text-gray-400 mt-1">?</div>
+              <div className="text-xs text-gray-400 mt-1">
+                <div className="text-xs text-gray-400 mt-1">heckof.ai</div>
+              </div>
             </div>
           </>
         )}

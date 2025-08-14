@@ -16,12 +16,14 @@ interface Player {
 interface GameControlsProps {
   gameState: string;
   currentPlayer: Player | null;
+  players: Player[];
   isMyTurn: boolean;
   roomCreator?: string;
   endReason?: "early_end" | "showdown" | null;
   currentBet: number;
   bigBlind: number;
   round: string;
+  isStartingGame?: boolean;
   onStartGame: () => void;
   onFold: () => void;
   onCall: () => void;
@@ -36,12 +38,14 @@ interface GameControlsProps {
 export default function GameControls({
   gameState,
   currentPlayer,
+  players,
   isMyTurn,
   roomCreator,
   endReason,
   currentBet,
   bigBlind,
   round,
+  isStartingGame = false,
   onStartGame,
   onFold,
   onCall,
@@ -60,16 +64,30 @@ export default function GameControls({
     isMyTurn;
 
   return (
-    <div className="bg-poker-dark bg-opacity-90 p-2 rounded-lg border-2 border-poker-gold sm:p-4">
+    <div className="bg-poker-dark/80 backdrop-blur-md p-2 rounded-lg border border-poker-gold/60 shadow-lg sm:p-4">
       {gameState === "waiting" ? (
         <div className="text-center">
           {currentPlayer && roomCreator === currentPlayer.id ? (
             <>
-              <button onClick={onStartGame} className="game-button">
-                Start Game
+              <button 
+                onClick={onStartGame} 
+                disabled={players.length < 2 || isStartingGame}
+                className="game-button disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isStartingGame ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mx-auto mb-1"></div>
+                    Starting...
+                  </>
+                ) : (
+                  "Start Game"
+                )}
               </button>
               <p className="text-xs text-gray-300 mt-2 sm:text-sm">
-                Waiting for players... (You can start the game)
+                {players.length < 2 
+                  ? "Need at least 2 players to start the game" 
+                  : "Waiting for players... (You can start the game)"
+                }
               </p>
             </>
           ) : (
@@ -98,7 +116,7 @@ export default function GameControls({
               {(currentBet === 0 || (currentPlayer && currentPlayer.bet === currentBet)) && (
                 <button
                   onClick={onCheck}
-                  className="action-button bg-green-600 hover:bg-green-700"
+                  className="action-button bg-teal-600 hover:bg-teal-700"
                 >
                   Check
                 </button>
@@ -106,12 +124,12 @@ export default function GameControls({
 
               {/* Show Call button when there's a current bet to call */}
               {currentPlayer && currentBet > currentPlayer.bet && (
-                <button
-                  onClick={onCall}
-                  className="action-button bg-blue-600 hover:bg-blue-700"
-                >
-                  Call ({formatMoney(currentBet - currentPlayer.bet)})
-                </button>
+                              <button
+                onClick={onCall}
+                className="action-button bg-cyan-600 hover:bg-cyan-700"
+              >
+                Call ({formatMoney(currentBet - currentPlayer.bet)})
+              </button>
               )}
 
               <button

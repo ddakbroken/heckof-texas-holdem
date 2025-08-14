@@ -54,7 +54,7 @@
 
 
   .game-button {
-    @apply bg-poker-gold text-poker-dark px-6 py-2 rounded-lg font-bold hover:bg-yellow-400 transition-colors;
+    @apply enabled:bg-poker-gold/90 disabled:bg-poker-dark backdrop-blur-sm enabled:text-poker-dark disabled:text-gray-300 px-6 py-2 rounded-lg font-bold hover:bg-yellow-400/90 transition-colors border border-yellow-300/30 shadow-lg;
   }
 
   /* Mobile responsive game buttons */
@@ -71,7 +71,7 @@
   }
 
   .action-button {
-    @apply bg-poker-red text-white px-4 py-2 rounded-lg font-bold hover:bg-red-700 transition-colors;
+    @apply bg-poker-red/90 backdrop-blur-sm text-white px-4 py-2 rounded-lg font-bold hover:bg-red-700/90 transition-colors border border-red-300/20 shadow-lg;
   }
 
   /* Mobile responsive action buttons */
@@ -107,11 +107,11 @@
   .chip.red {
     @apply bg-red-600;
   }
-  .chip.blue {
-    @apply bg-blue-600;
+  .chip.cyan {
+    @apply bg-cyan-600;
   }
-  .chip.green {
-    @apply bg-green-600;
+  .chip.teal {
+    @apply bg-teal-600;
   }
   .chip.black {
     @apply bg-black;
@@ -121,11 +121,11 @@
   }
 
   .ai-thinking {
-    @apply animate-pulse text-blue-400;
+    @apply animate-pulse text-cyan-400;
   }
 
   .ai-indicator {
-    @apply bg-blue-600 text-white px-1 rounded text-xs;
+    @apply bg-cyan-600 text-white px-1 rounded text-xs;
   }
 
   .card-placeholder {
@@ -139,5 +139,32 @@
 
   .confirmation-dialog-content {
     @apply bg-poker-dark border-2 border-poker-gold rounded-lg p-6 max-w-md mx-4;
+  }
+
+  /* Turn indication animations */
+  .turn-pulse {
+    animation: turnPulse 2s ease-in-out infinite;
+  }
+
+  .turn-glow {
+    animation: turnGlow 1.5s ease-in-out infinite alternate;
+  }
+
+  @keyframes turnPulse {
+    0%, 100% {
+      box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7);
+    }
+    50% {
+      box-shadow: 0 0 0 10px rgba(245, 158, 11, 0);
+    }
+  }
+
+  @keyframes turnGlow {
+    0% {
+      box-shadow: 0 0 5px rgba(245, 158, 11, 0.5), 0 0 10px rgba(245, 158, 11, 0.3);
+    }
+    100% {
+      box-shadow: 0 0 15px rgba(245, 158, 11, 0.8), 0 0 25px rgba(245, 158, 11, 0.5);
+    }
   }
 }

@@ -59,8 +59,8 @@ export default function BettingPanel({
   const quickAmounts = [10, 50, 100, 250];
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-poker-dark p-4 rounded-lg border-2 border-poker-gold max-w-md w-full mx-4 sm:p-6">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-poker-dark/90 backdrop-blur-md p-4 rounded-lg border border-poker-gold/60 max-w-md w-full mx-4 sm:p-6 shadow-2xl">
         <div className="text-center mb-6">
           <h3 className="text-lg font-bold text-poker-gold mb-2 sm:text-xl">
             {currentBet === 0 ? "Place Bet" : "Raise"}
@@ -90,7 +90,7 @@ export default function BettingPanel({
               min={currentBet === 0 ? 20 : currentBet + 20}
               max={player.chips}
               step="1"
-              className="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-poker-gold"
+              className="w-full px-4 py-2 bg-gray-800/80 backdrop-blur-sm border border-gray-600/60 rounded-lg text-white focus:outline-none focus:border-poker-gold/80 focus:bg-gray-800/90"
             />
           </div>
 
@@ -104,7 +104,7 @@ export default function BettingPanel({
                 onClick={() =>
                   setBetAmount(currentBet === 0 ? 20 : currentBet + 20)
                 }
-                className="py-1 px-2 bg-gray-700 text-white rounded-lg text-xs hover:bg-gray-600 sm:py-2 sm:px-3"
+                className="py-1 px-2 bg-gray-700/80 backdrop-blur-sm text-white rounded-lg text-xs hover:bg-gray-600/80 transition-colors border border-gray-500/20 sm:py-2 sm:px-3"
               >
                 Min ({formatMoney(currentBet === 0 ? 20 : currentBet + 20)})
               </button>
@@ -113,14 +113,14 @@ export default function BettingPanel({
                   key={amount}
                   onClick={() => setBetAmount(amount)}
                   disabled={amount > player.chips}
-                  className="py-1 px-2 bg-gray-700 text-white rounded-lg text-xs hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed sm:py-2 sm:px-3"
+                  className="py-1 px-2 bg-gray-700/80 backdrop-blur-sm text-white rounded-lg text-xs hover:bg-gray-600/80 transition-colors border border-gray-500/20 disabled:opacity-50 disabled:cursor-not-allowed sm:py-2 sm:px-3"
                 >
                   {formatMoney(amount)}
                 </button>
               ))}
               <button
                 onClick={() => setBetAmount(player.chips)}
-                className="py-1 px-2 bg-red-700 text-white rounded-lg text-xs hover:bg-red-600 sm:py-2 sm:px-3"
+                className="py-1 px-2 bg-red-700/80 backdrop-blur-sm text-white rounded-lg text-xs hover:bg-red-600/80 transition-colors border border-red-500/20 sm:py-2 sm:px-3"
               >
                 All In
               </button>
@@ -131,7 +131,7 @@ export default function BettingPanel({
           <div className="flex gap-2 sm:gap-3">
             <button
               onClick={onClose}
-              className="flex-1 py-1 px-2 bg-gray-600 text-white rounded-lg font-bold hover:bg-gray-700 transition-colors sm:py-2 sm:px-4"
+              className="flex-1 py-1 px-2 bg-gray-600/80 backdrop-blur-sm text-white rounded-lg font-bold hover:bg-gray-700/80 transition-colors border border-gray-500/20 sm:py-2 sm:px-4"
             >
               Cancel
             </button>
@@ -141,7 +141,7 @@ export default function BettingPanel({
                 betAmount < (currentBet === 0 ? 20 : currentBet + 20) ||
                 betAmount > player.chips
               }
-              className="flex-1 py-1 px-2 bg-poker-gold text-poker-dark rounded-lg font-bold hover:bg-yellow-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed sm:py-2 sm:px-4 text-sm"
+              className="flex-1 py-1 px-2 bg-poker-gold/90 backdrop-blur-sm text-poker-dark rounded-lg font-bold hover:bg-yellow-400/90 transition-colors border border-yellow-300/30 disabled:opacity-50 disabled:cursor-not-allowed sm:py-2 sm:px-4 text-sm"
             >
               {currentBet === 0 ? "Bet" : "Raise"}
             </button>

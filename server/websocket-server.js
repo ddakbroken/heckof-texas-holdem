@@ -17,9 +17,16 @@ const server = app.listen(PORT, () => {
 
 const io = new Server(server, {
   cors: {
-    origin: process.env.FRONTEND_URL || "http://localhost:3000",
-    methods: ["GET", "POST"]
-  }
+    origin: [
+      process.env.FRONTEND_URL || "http://localhost:3000",
+      "http://192.168.4.127:3000",
+      "https://heckof-texas-holdem.railway.app",
+    ],
+    methods: ["GET", "POST"],
+    credentials: true,
+    allowedHeaders: ["Content-Type", "Authorization"]
+  },
+  transports: ['websocket', 'polling']
 });
 
 // Game state management

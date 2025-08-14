@@ -32,8 +32,8 @@ export default function GameLobby({ onJoinGame }: GameLobbyProps) {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-poker-green to-green-900">
-      <div className="bg-poker-dark p-8 rounded-lg shadow-2xl border-2 border-poker-gold max-w-md w-full">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-teal-800 to-teal-900">
+      <div className="bg-poker-dark/90 backdrop-blur-md p-8 rounded-lg shadow-2xl border border-poker-gold/60 max-w-md w-full">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-poker-gold mb-2">Texas Hold'em</h1>
           <p className="text-gray-300">Join a poker game with up to 8 players</p>
@@ -49,7 +49,7 @@ export default function GameLobby({ onJoinGame }: GameLobbyProps) {
               id="playerName"
               value={playerName}
               onChange={(e) => setPlayerName(e.target.value)}
-              className="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-poker-gold"
+              className="w-full px-4 py-2 bg-gray-800/80 backdrop-blur-sm border border-gray-600/60 rounded-lg text-white focus:outline-none focus:border-poker-gold/80 focus:bg-gray-800/90"
               placeholder="Enter your name"
               maxLength={20}
             />
@@ -65,13 +65,13 @@ export default function GameLobby({ onJoinGame }: GameLobbyProps) {
                 id="roomId"
                 value={roomId}
                 onChange={(e) => setRoomId(e.target.value.toUpperCase())}
-                className="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-poker-gold"
+                className="w-full px-4 py-2 bg-gray-800/80 backdrop-blur-sm border border-gray-600/60 rounded-lg text-white focus:outline-none focus:border-poker-gold/80 focus:bg-gray-800/90"
                 placeholder="Enter room code"
                 maxLength={6}
               />
             </div>
           ) : (
-            <div className="bg-gray-800 p-4 rounded-lg border border-poker-gold">
+            <div className="bg-gray-800/80 backdrop-blur-sm p-4 rounded-lg border border-poker-gold/60">
               <p className="text-sm text-gray-300 mb-2">Room Code:</p>
               <p className="text-2xl font-bold text-poker-gold">{roomId}</p>
               <p className="text-xs text-gray-400 mt-1">Share this code with other players</p>
@@ -94,7 +94,7 @@ export default function GameLobby({ onJoinGame }: GameLobbyProps) {
                 <button
                   onClick={handleCreateRoom}
                   disabled={!playerName.trim()}
-                  className="w-full bg-blue-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full bg-cyan-600/90 backdrop-blur-sm text-white px-6 py-2 rounded-lg font-bold hover:bg-cyan-700/90 transition-colors border border-cyan-300/20 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Create New Room
                 </button>
@@ -115,7 +115,6 @@ export default function GameLobby({ onJoinGame }: GameLobbyProps) {
           <p>• Up to 8 players per room</p>
           <p>• Minimum 2 players to start</p>
           <p>• Each player starts with 1000 chips</p>
-          <p>• Human players only - no AI opponents</p>
           <p>• Room creator controls when to start the game</p>
         </div>
       </div>
