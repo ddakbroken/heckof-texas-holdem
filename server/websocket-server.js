@@ -11,6 +11,26 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// API endpoint to get available rooms
+app.get('/api/rooms', (req, res) => {
+  const availableRooms = [];
+  
+  for (const [roomId, game] of games) {
+    // Only show rooms that are waiting for players or have space
+    if (game.gameState === 'waiting' && game.players.size < MAX_PLAYERS) {
+      availableRooms.push({
+        roomId: roomId,
+        playerCount: game.players.size,
+        maxPlayers: MAX_PLAYERS,
+        gameState: game.gameState,
+        roomCreator: game.roomCreator || 'Unknown'
+      });
+    }
+  }
+  
+  res.json(availableRooms);
+});
+
 const server = app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
@@ -23,10 +43,8 @@ const io = new Server(server, {
       "https://heckof-texas-holdem.railway.app",
     ],
     methods: ["GET", "POST"],
-    credentials: true,
-    allowedHeaders: ["Content-Type", "Authorization"]
   },
-  transports: ['websocket', 'polling']
+  transports: ['websocket']
 });
 
 // Game state management
@@ -78,6 +96,7 @@ class PokerGame {
     this.showAllCards = false;
     this.roundStartChips = new Map();
     this.blindsPosted = false;
+    this.winners = null; // Array of winner objects
     this.initializeDeck();
   }
 
@@ -180,6 +199,7 @@ class PokerGame {
       this.dealerIndex = 0;
       this.currentPlayerIndex = 0;
       this.blindsPosted = false;
+      this.winners = null;
       io.to(this.roomId).emit('gameState', this.getGameState());
       return;
     }
@@ -193,6 +213,7 @@ class PokerGame {
     this.gameState = 'playing';
     this.endReason = null;
     this.blindsPosted = false;
+    this.winners = null;
     
     // Rotate dealer
     const playerArray = Array.from(this.players.values());
@@ -560,6 +581,13 @@ class PokerGame {
       console.log(`${winner.name} wins by default - all other players folded`);
       this.endReason = 'early_end';
       this.gameState = 'finished';
+      // Store winner information
+      this.winners = [{
+        playerId: winner.id,
+        playerName: winner.name,
+        handName: 'Default Win',
+        winAmount: this.pot
+      }];
       io.to(this.roomId).emit('gameState', this.getGameState());
       return;
     }
@@ -584,16 +612,20 @@ class PokerGame {
     
     // If multiple winners, split the pot
     const winAmount = Math.floor(this.pot / winners.length);
-    winners.forEach(winner => {
-      winner.player.chips += winAmount;
+    const remainder = this.pot % winners.length;
+    
+    // Store winner information
+    this.winners = winners.map((winner, index) => ({
+      playerId: winner.player.id,
+      playerName: winner.player.name,
+      handName: winner.handName,
+      winAmount: winAmount + (index === 0 ? remainder : 0)
+    }));
+    
+    winners.forEach((winner, index) => {
+      winner.player.chips += winAmount + (index === 0 ? remainder : 0);
       console.log(`${winner.player.name} wins with ${winner.handName}`);
     });
-    
-    // Handle remainder (if pot doesn't divide evenly)
-    const remainder = this.pot % winners.length;
-    if (remainder > 0) {
-      winners[0].player.chips += remainder;
-    }
     
     this.pot = 0;
     this.endReason = 'showdown';
@@ -619,7 +651,8 @@ class PokerGame {
       roundStartIndex: this.roundStartIndex,
       showAllCards: this.showAllCards,
       bigBlind: this.bigBlind,
-      blindsPosted: this.blindsPosted
+      blindsPosted: this.blindsPosted,
+      winners: this.winners || null
     };
   }
 }

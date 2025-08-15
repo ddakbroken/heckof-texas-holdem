@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { Suit, PlayingCardProps } from "../types";
+import Image from "next/image";
 
 function getSuitSymbol(suit: Suit): string {
   switch (suit) {
@@ -69,7 +70,7 @@ export default function PlayingCard({
       className={`${className} flex gap-1 flex-col items-center justify-center`}
     >
       <div className="card relative">
-        <img
+        <Image
           src={imgSrc}
           alt={`${faceDown ? "Card back" : `${rank} of ${suit}`}`}
           onError={() => {
@@ -77,6 +78,9 @@ export default function PlayingCard({
               setImgSrc(frontSvg);
             }
           }}
+          width={100}
+          height={100}
+          className="w-full h-full"
         />
       </div>
       <div className="text-sm text-white font-mono">{getCardText()}</div>

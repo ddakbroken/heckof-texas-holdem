@@ -165,7 +165,7 @@ export default function PokerTable({
     return () => {
       newSocket.close();
     };
-  }, [roomId, playerName, gameState.roomCreator, gameState.players]);
+  }, [roomId, playerName]);
 
   const handleStartGame = () => {
     if (!isConnected || isStartingGame) return;
@@ -289,24 +289,6 @@ export default function PokerTable({
           {/* Pot info */}
           <div className="text-center">
             <div className="bg-black/20 backdrop-blur-md border border-white/10 rounded-lg p-4 mb-4">
-              {/* Turn indicator */}
-              {gameState.gameState === "playing" &&
-                gameState.currentPlayerIndex !== -1 && (
-                  <div className="mb-3">
-                    {gameState.players[gameState.currentPlayerIndex]?.name ===
-                    playerName ? (
-                      <div className="bg-poker-gold/90 backdrop-blur-sm text-black px-4 py-2 rounded-lg text-lg font-bold border border-yellow-300/30 turn-pulse">
-                        YOUR TURN TO PLAY
-                      </div>
-                    ) : (
-                      <div className="bg-cyan-600/90 backdrop-blur-sm text-white px-4 py-2 rounded-lg text-lg font-bold border border-cyan-300/30">
-                        🎮{" "}
-                        {gameState.players[gameState.currentPlayerIndex]?.name}
-                        &apos;s Turn
-                      </div>
-                    )}
-                  </div>
-                )}
 
               <div className="text-xl font-bold text-poker-gold">
                 Pot: {formatMoney(gameState.pot)}
@@ -318,13 +300,6 @@ export default function PokerTable({
                 <div className="text-xs text-gray-400 mt-1">
                   Blinds: {formatMoney(gameState.bigBlind / 2)} /{" "}
                   {formatMoney(gameState.bigBlind)}
-                </div>
-              )}
-              {gameState.showAllCards && (
-                <div className="mt-2">
-                  <span className="bg-poker-gold/90 backdrop-blur-sm text-black px-2 py-1 rounded text-base font-bold border border-yellow-300/30">
-                    🃏 All Cards Revealed
-                  </span>
                 </div>
               )}
             </div>
@@ -377,7 +352,7 @@ export default function PokerTable({
                   </span>
                   <div className="flex items-center justify-between">
                     <div className="flex flex-col gap-2">
-                      <div className="flex items-start gap-2 flex-col xs:flex-row">
+                      <div className="flex items-start gap-2 flex-row">
                         {gameState.players.findIndex(
                           (p) => p.id === player.id
                         ) === gameState.dealerIndex && (
@@ -407,7 +382,7 @@ export default function PokerTable({
                         )}
                       </div>
                       {/* Bet and Chips Group */}
-                      <div className="flex gap-2 mb-2">
+                      <div className="flex flex-wrap gap-2 mb-2">
                         {/* Bet Box */}
                         <div
                           className={`px-3 py-2 rounded-lg border backdrop-blur-sm ${
@@ -545,6 +520,7 @@ export default function PokerTable({
               endReason={gameState.endReason}
               currentBet={gameState.currentBet}
               isStartingGame={isStartingGame}
+              winners={gameState.winners}
               onStartGame={handleStartGame}
               onFold={handleFold}
               onCall={handleCall}

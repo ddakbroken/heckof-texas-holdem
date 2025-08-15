@@ -1,6 +1,13 @@
 import { Card } from './card';
 import { Player } from './player';
 
+export interface Winner {
+  playerId: string;
+  playerName: string;
+  handName: string;
+  winAmount: number;
+}
+
 export interface GameState {
   roomId: string;
   players: Player[];
@@ -19,6 +26,7 @@ export interface GameState {
   showAllCards?: boolean;
   bigBlind: number;
   blindsPosted?: boolean;
+  winners?: Winner[] | null;
 }
 
 export interface GameControlsProps {
@@ -30,6 +38,7 @@ export interface GameControlsProps {
   endReason?: "early_end" | "showdown" | null;
   currentBet: number;
   isStartingGame?: boolean;
+  winners?: Winner[] | null;
   onStartGame: () => void;
   onFold: () => void;
   onCall: () => void;
